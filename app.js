@@ -224,7 +224,7 @@
       const at = new Date().toISOString();
       setIndbFoods(foods, at);
       if (Store.mode === "device") await IDB.put("meta", "indb", { at, foods });
-      toast(`Added ${foods.length} Indian dishes to food search`);
+      toast("Indian dish database is ready for search");
     } catch (e) {
       console.warn("indb", e);
       S.indbError = navigator.onLine === false ? "You're offline. Connect and try again." : "Couldn't download the dish database. Try again later.";
@@ -236,11 +236,8 @@
 
   // ---------- Claude, through the official Anthropic SDK, with the key kept on this device ----------
   const SDK_URL = "https://cdn.jsdelivr.net/npm/@anthropic-ai/sdk@0.131.0/+esm";
-  const MODELS = [
-    ["claude-opus-5-5", "Claude Opus 5.5: most accurate"],
-    ["claude-sonnet-5-5", "Claude Sonnet 5.5: balanced"],
-    ["claude-haiku-5-5", "Claude Haiku 5.5: fastest and cheapest"],
-  ];
+  // Always the fastest, cheapest Claude model.
+  const MODEL = "claude-haiku-5-5";
   const aiOn = () => !!S.meta.apiKey;
   const AI = {
     Anthropic: null,
@@ -255,25 +252,12 @@
       }
       return this.client;
     },
-    model() { return S.meta.model || "claude-opus-5-5"; },
-    // Opus and Sonnet re-run a declined request on a fallback model; Haiku has no server-side fallback.
-    // If Anthropic rejects an optional feature with a 400, the call is retried once without it
-    // (rejected requests are not billed) and the feature stays off for the rest of the session.
+    // If Anthropic rejects structured output with a 400, the call is retried once asking for plain JSON
+    // (rejected requests are not billed) and structured output stays off for the rest of the session.
     isBadRequest(e) { return !!(this.Anthropic && e instanceof this.Anthropic.BadRequestError); },
     async create(body, signal) {
       const client = await this.get();
-      const model = this.model();
-      const params = Object.assign({ model, max_tokens: 16000 }, body);
-      if (model !== "claude-haiku-5-5" && !this.noFallbacks) {
-        try {
-          return await client.beta.messages.create(Object.assign({}, params, { betas: ["server-side-fallback-2026-07-01"], fallbacks: "default" }), { signal });
-        } catch (e) {
-          if (!this.isBadRequest(e)) throw e;
-          console.warn("Refusal fallback rejected; retrying without it:", e.message);
-          this.noFallbacks = true;
-        }
-      }
-      return client.messages.create(params, { signal });
+      return client.messages.create(Object.assign({ model: MODEL, max_tokens: 16000 }, body), { signal });
     },
     text(resp) {
       if (resp.stop_reason === "refusal") throw { code: "refused" };
@@ -302,7 +286,7 @@
       return JSON.parse(raw.slice(raw.indexOf("{"), raw.lastIndexOf("}") + 1));
     },
     async write(prompt, opts = {}) {
-      const resp = await this.create({ output_config: { effort: opts.effort || "medium" }, messages: [{ role: "user", content: prompt }] }, opts.signal);
+      const resp = await this.create({ output_config: { effort: opts.effort || "low" }, messages: [{ role: "user", content: prompt }] }, opts.signal);
       return this.text(resp);
     },
   };
@@ -1178,9 +1162,7 @@
     }
     if (mine.length) html += `<span class="eyebrow">My foods</span><ul class="flist">${mine.map(foodRow).join("")}</ul>`;
     if (recent.length) html += `<span class="eyebrow">Recent</span><ul class="flist">${recent.map(foodRow).join("")}</ul>`;
-    const total = window.FOODS.length + INDB_FOODS.length;
-    return html ? html + `<small>Search covers ${fmt(total)} foods plus everything you've saved.</small>`
-      : `<p class="empty">Type to search ${fmt(total)} Indian foods and dishes. Anything Claude estimates for you is saved here too.</p>`;
+    return html || `<p class="empty">Type to search Indian foods and dishes. Anything Claude estimates for you is saved here too.</p>`;
   }
   const previewN = (n) => `<div class="preview-n"><div><b>${fmt(n.kcal)}</b><span>kcal</span></div><div><b>${fmt(n.p, 1)}</b><span>protein</span></div><div><b>${fmt(n.c, 1)}</b><span>carbs</span></div><div><b>${fmt(n.f, 1)}</b><span>fat</span></div></div>`;
   function pickGrams(sh) {
@@ -1447,12 +1429,11 @@
       ${S.meta.apiKey ? `<div class="row"><button class="btn small" data-act="checkkey"${sh.keyBusy ? " disabled" : ""}>Test the key</button><button class="btn small danger" data-act="removekey">Remove key</button></div>` : ""}
       ${sh.keyBusy ? `<div class="busy"><span class="spinner"></span><span>Checking with Anthropic…</span></div>` : ""}
       ${sh.keyMsg ? `<p class="${sh.keyOk ? "note" : "err"}">${esc(sh.keyMsg)}</p>` : ""}
-      <label class="f" for="s-model">Model${sel("s-model", MODELS, AI.model(), ' data-change="model"')}</label>
-      <small>Rough cost per photo: 2–4 US cents on Opus, 1–2 on Sonnet, about a tenth of a cent on Haiku. Haiku is also the fastest. The key stays on this phone and is sent only to Anthropic. Set a monthly spend limit in the Anthropic console.</small>
+      <small>Estimates use Claude Haiku 5.5, the fastest and cheapest Claude model, at roughly a tenth of a US cent per photo. The key stays on this phone and is sent only to Anthropic. Set a monthly spend limit in the Anthropic console.</small>
 
       <hr class="sep">
       <h3>Food database</h3>
-      <p class="muted">${window.FOODS.length} hand-checked foods are built in. ${INDB_FOODS.length ? `${fmt(INDB_FOODS.length)} more cooked dishes from the Indian Nutrient Databank are stored on this phone${S.indbAt ? ", downloaded " + esc(fmtDate(String(S.indbAt).slice(0, 10), { day: "numeric", month: "short", year: "numeric" })) : ""}.` : "The Indian Nutrient Databank adds about 790 cooked dishes. It downloads once (about 1 MB) and then works offline."}</p>
+      <p class="muted">Common Indian foods are built in. ${INDB_FOODS.length ? `Cooked dishes from the Indian Nutrient Databank are also stored on this phone${S.indbAt ? ", downloaded " + esc(fmtDate(iso(new Date(S.indbAt)), { day: "numeric", month: "short", year: "numeric" })) : ""}.` : "Cooked dishes from the Indian Nutrient Databank download once (about 1 MB) and then work offline."}</p>
       ${S.indbBusy ? `<div class="busy"><span class="spinner"></span><span>Downloading dishes…</span></div>` : `<div class="row"><button class="btn small" data-act="indb">${INDB_FOODS.length ? "Download again" : "Download dishes"}</button></div>`}
       ${S.indbError ? `<p class="err">${esc(S.indbError)}</p>` : ""}
       <small>Indian Nutrient Databank, Jaacks Lab, University of Edinburgh. Deep-fried dishes are left out because the source counts all the frying oil, and so are egg, fish and meat dishes other than chicken.</small>
@@ -1468,6 +1449,11 @@
         </ol>
       </div>
       <div class="row"><input id="s-link" type="text" readonly value="${esc(appUrl())}" aria-label="Link to Beach Body" style="flex:1"><button class="btn small" data-act="copylink">Copy link</button></div>
+
+      ${S.accessOn ? `<hr class="sep">
+      <h3>Privacy</h3>
+      <p class="muted">Beach Body asks for your passcode the first time it opens on a device. Your log and API key never leave this phone, so anyone else who opens the link only gets an empty app of their own.</p>
+      <div class="row"><button class="btn small" data-act="lockdevice">Lock this device</button></div>` : ""}
 
       <hr class="sep">
       <h3>Your data</h3>
@@ -1642,7 +1628,7 @@ Write plain text with no markdown, headings or bold. Exactly five lines, each st
     if (!aiOn()) { openSheet({ type: "settings" }); return; }
     const r = (S.ui.review = { busy: true, text: "", err: null, ctl: new AbortController() });
     render();
-    try { r.text = await AI.write(reviewPrompt(), { signal: r.ctl.signal, effort: "medium" }); }
+    try { r.text = await AI.write(reviewPrompt(), { signal: r.ctl.signal, effort: "low" }); }
     catch (e) { r.err = aiError(e) || null; }
     r.busy = false; r.ctl = null;
     render();
@@ -1712,12 +1698,13 @@ Write plain text with no markdown, headings or bold. Exactly five lines, each st
       sh.keyBusy = true; sh.keyMsg = null; renderSheet();
       try {
         const out = await AI.json("Reply with ok set to true.", { type: "object", additionalProperties: false, required: ["ok"], properties: { ok: { type: "boolean" } } }, { effort: "low" });
-        sh.keyOk = !!(out && out.ok); sh.keyMsg = sh.keyOk ? `The key works with ${AI.model()}.` : "The key answered, but not as expected. Try again.";
+        sh.keyOk = !!(out && out.ok); sh.keyMsg = sh.keyOk ? "The key works." : "The key answered, but not as expected. Try again.";
       } catch (e) { sh.keyOk = false; sh.keyMsg = aiError(e) || "Stopped."; }
       sh.keyBusy = false;
       if (S.sheet === sh) renderSheet();
     },
     indb() { downloadIndb(); },
+    lockdevice(el) { if (!armed(el)) return; lsSet(ACCESS_KEY, null); location.reload(); },
     "food-meal"(el) { S.sheet.meal = el.dataset.meal; renderSheet(); },
     "food-mode"(el) { S.sheet.mode = el.dataset.mode; S.sheet.error = null; renderSheet(); if (el.dataset.mode === "search") setTimeout(() => { const q = $("#f-q"); if (q) q.focus(); }, 30); },
     "food-estimate"() { estimateFood(); },
@@ -1900,7 +1887,6 @@ Write plain text with no markdown, headings or bold. Exactly five lines, each st
     mdate(el) { S.ui.bodyDate = /^\d{4}-\d{2}-\d{2}$/.test(el.value) ? el.value : today(); render(); },
     cmpa(el) { S.ui.cmpA = el.value; render(); },
     cmpb(el) { S.ui.cmpB = el.value; render(); },
-    model(el) { Store.setMeta("model", el.value); if (S.sheet) { S.sheet.keyMsg = null; } },
   };
 
   document.addEventListener("click", (e) => {
@@ -1964,19 +1950,90 @@ Write plain text with no markdown, headings or bold. Exactly five lines, each st
     resizeT = setTimeout(() => { const w = ($("#view") && $("#view").clientWidth) || 0; if (Math.abs(w - lastW) > 24 && (S.ui.tab === "body" || S.ui.tab === "trends")) { lastW = w; scheduleRender(); } }, 200);
   });
 
+  // ---------- passcode lock ----------
+  // access.json holds a salt and a PBKDF2-SHA256 hash of the passcode, never the passcode itself.
+  // It keeps other people out of the app; the log and API key only ever live on each device anyway.
+  const ACCESS_KEY = "beachbody.access";
+  function lsSet(k, v) { try { if (v == null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch (e) { /* storage blocked */ } }
+  function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+  const toB64 = (u8) => btoa(String.fromCharCode.apply(null, Array.from(u8)));
+  const fromB64 = (s) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
+  async function loadAccess() {
+    try {
+      const r = await fetch("access.json", { cache: "no-store" });
+      if (r.status === 404) return { open: true };
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      const a = await r.json();
+      return a && a.hash && a.salt && a.iter ? a : { open: true };
+    } catch (e) { return { offline: true }; }
+  }
+  async function passHash(pass, a) {
+    const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(pass.trim()), "PBKDF2", false, ["deriveBits"]);
+    const bits = await crypto.subtle.deriveBits({ name: "PBKDF2", salt: fromB64(a.salt), iterations: a.iter, hash: "SHA-256" }, key, 256);
+    return toB64(new Uint8Array(bits));
+  }
+  function showLock(a) {
+    document.body.classList.add("locked");
+    const box = $("#lock");
+    box.hidden = false;
+    box.innerHTML = `<form class="lock-card" id="lock-form" novalidate>
+      <div class="brand"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 12V5.5"/><path d="M12 3v1M21 12h-1M12 21v-1M3 12h1"/></svg>Beach Body</div>
+      <div class="rope" aria-hidden="true"></div>
+      <p class="muted">${a.offline ? "Connect to the internet once to unlock Beach Body on this device." : "This is a private app. Enter the passcode to open it on this device."}</p>
+      ${a.offline ? "" : `<label class="vh" for="lock-pass">Passcode</label>
+      <input id="lock-pass" type="password" autocomplete="current-password" autocapitalize="off" spellcheck="false" placeholder="Passcode">
+      <button class="btn primary wide" type="submit" id="lock-go">Unlock</button>`}
+      <p class="err" id="lock-err" role="alert" hidden></p>
+    </form>`;
+    $("#lock-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const input = $("#lock-pass"), btn = $("#lock-go"), err = $("#lock-err");
+      if (!input || !input.value.trim()) return;
+      btn.disabled = true; btn.textContent = "Checking…"; err.hidden = true;
+      let ok = false;
+      try { ok = (await passHash(input.value, a)) === a.hash; } catch (e2) { ok = false; }
+      if (ok) {
+        lsSet(ACCESS_KEY, a.hash);
+        box.hidden = true; box.innerHTML = "";
+        document.body.classList.remove("locked");
+        start();
+      } else {
+        btn.disabled = false; btn.textContent = "Unlock";
+        err.textContent = "That passcode isn't right."; err.hidden = false;
+        input.select();
+      }
+    });
+    const inp = $("#lock-pass");
+    if (inp) setTimeout(() => inp.focus(), 50);
+  }
+
   // ---------- boot ----------
-  try {
-    const u = JSON.parse(localStorage.getItem("beachbody.ui") || "{}");
-    if (["today", "train", "body", "trends"].includes(u.tab)) S.ui.tab = u.tab;
-    if (u.trainSub) S.ui.trainSub = u.trainSub;
-  } catch (e) { /* ignore */ }
-  const h = (location.hash || "").slice(1);
-  if (["today", "train", "body", "trends"].includes(h)) S.ui.tab = h;
-  render();
-  lastW = ($("#view") && $("#view").clientWidth) || 0;
-  Store.init().then(() => {
-    // First launch: fetch the dish database once so search covers it offline afterwards.
-    if (!INDB_FOODS.length && Store.mode === "device" && navigator.onLine !== false) downloadIndb();
-  });
-  if ("serviceWorker" in navigator && location.protocol === "https:") navigator.serviceWorker.register("sw.js").catch((e) => console.warn("offline support unavailable", e));
+  let started = false;
+  function start() {
+    if (started) return;
+    started = true;
+    render();
+    lastW = ($("#view") && $("#view").clientWidth) || 0;
+    Store.init().then(() => {
+      // First launch: fetch the dish database once so search covers it offline afterwards.
+      if (!INDB_FOODS.length && Store.mode === "device" && navigator.onLine !== false) downloadIndb();
+    });
+  }
+  async function boot() {
+    try {
+      const u = JSON.parse(localStorage.getItem("beachbody.ui") || "{}");
+      if (["today", "train", "body", "trends"].includes(u.tab)) S.ui.tab = u.tab;
+      if (u.trainSub) S.ui.trainSub = u.trainSub;
+    } catch (e) { /* ignore */ }
+    const h = (location.hash || "").slice(1);
+    if (["today", "train", "body", "trends"].includes(h)) S.ui.tab = h;
+    if ("serviceWorker" in navigator && location.protocol === "https:") navigator.serviceWorker.register("sw.js").catch((e) => console.warn("offline support unavailable", e));
+    const a = await loadAccess();
+    const saved = lsGet(ACCESS_KEY);
+    S.accessOn = !!a.hash || (!!a.offline && !!saved);
+    // Offline with a device that was unlocked before: let it in; the passcode is checked again once online.
+    if (a.open || (a.hash && saved === a.hash) || (a.offline && saved)) start();
+    else showLock(a);
+  }
+  boot();
 })();

@@ -330,7 +330,7 @@ details.wo summary::-webkit-details-marker { display: none; }
 .thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .thumb-x { position: absolute; top: 5px; right: 5px; width: 28px; height: 28px; border-radius: 50%; border: 0; background: rgba(0, 0, 0, .62); color: #fff; display: flex; align-items: center; justify-content: center; }
 .thumb-x svg { width: 16px; height: 16px; }
-.fab { border: 0; font-family: inherit; position: fixed; z-index: 25; right: max(16px, env(safe-area-inset-right, 0px), calc((100% - 760px) / 2 + 16px)); bottom: calc(78px + env(safe-area-inset-bottom, 0px)); display: inline-flex; align-items: center; gap: 8px; padding: 13px 20px 13px 16px; border-radius: 999px; background: var(--accent); color: var(--on-accent); font-weight: 700; font-size: 15.5px; box-shadow: 0 8px 24px rgba(4, 30, 45, .3); cursor: pointer; }
+.fab { border: 0; font-family: inherit; position: fixed; z-index: 25; right: max(16px, env(safe-area-inset-right, 0px), calc((100% - 760px) / 2 + 16px)); bottom: calc(78px + env(safe-area-inset-bottom, 0px)); display: inline-flex; align-items: center; gap: 8px; padding: 13px 20px 13px 16px; border-radius: 999px; background: var(--accent); color: var(--on-accent); font-weight: 700; font-size: 15.5px; box-shadow: 0 4px 12px rgba(0, 0, 0, .22); cursor: pointer; }
 .fab:hover { filter: brightness(1.07); }
 .fab svg { width: 21px; height: 21px; }
 .fab:focus-within { outline: 2px solid var(--ink); outline-offset: 3px; }
@@ -368,10 +368,18 @@ details.wo summary::-webkit-details-marker { display: none; }
 .ex-list .sr { font-family: var(--f-display); font-weight: 600; font-size: 16px; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .ex-list small { display: block; }
 ul.plain { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 6px; font-size: 14.5px; }
+/* Passcode lock */
+.lock { position: fixed; inset: 0; z-index: 100; background: var(--bg); display: flex; align-items: center; justify-content: center; padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.lock-card { width: 100%; max-width: 360px; display: flex; flex-direction: column; gap: 14px; text-align: center; }
+.lock-card .brand { justify-content: center; font-size: 28px; }
+.lock-card .brand svg { width: 28px; height: 28px; }
+.lock-card .rope { border-radius: 2px; }
+body.locked .top, body.locked .tabs, body.locked .fab, body.locked .app { display: none; }
 @media (prefers-reduced-motion: reduce) { .spinner { animation: none; } * { transition: none !important; } }
 </style>
 </head>
 <body>
+<div id="lock" class="lock" hidden></div>
 <header class="top">
   <div class="top-in">
     <div class="brand">
