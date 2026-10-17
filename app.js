@@ -663,7 +663,7 @@
   function trainHevy() {
     const list = sortedWorkouts();
     return `<section class="card"><div class="card-h"><h2>Workouts from Hevy</h2><button class="btn small" data-act="hevy">Paste from Hevy</button></div>
-      <p class="muted">After a workout, open it in Hevy, tap Share and copy it as text, then tap Paste from Hevy here. Each lift shows how it compares with last time.</p>
+      <p class="muted">After a workout, open its Hevy link in Chrome, select all the text, copy it, then tap Paste from Hevy. The phone reads it itself, with no AI, and each lift shows how it compares with last time.</p>
       ${list.length ? list.slice(0, 60).map((w) => {
         const sets = (w.exercises || []).reduce((s, e) => s + (e.sets || []).length, 0);
         const vol = w.volumeKg != null ? w.volumeKg : volumeOf(w.exercises);
@@ -1316,41 +1316,61 @@
     if (m) return `${m[3]}-${pad(MONTHS.indexOf(m[2]) + 1)}-${pad(+m[1])}`;
     return null;
   }
+  // Reads two layouts with no AI: Hevy's text share ("Set 1: 20 kg x 10") and the text copied from a
+  // hevy.com/workout page ("1" / "50kg x 12 reps" under SETS / WEIGHT & REPS headings).
+  const HEVY_NOISE = /^(sets?|weight\s*&\s*reps|weight|reps|duration|volume|records?|best\b.*|download|copy link|share|follow(ers|ing)?|workouts|distance|time|rpe|\d+|[\d,.]+\s*(kg|lbs?)|to (follow|view)\b.*|explore more\b.*)$/i;
+  const hevyDuration = (s) => { const m = String(s).match(/^(?:(\d+)\s*h)?\s*(?:(\d+)\s*m(?:in)?)?$/i); return m && (m[1] || m[2]) ? (+m[1] || 0) * 60 + (+m[2] || 0) : null; };
+  function hevySet(l) {
+    const w = l.match(/([+-]?\d+(?:[.,]\d+)?)\s*(kg|lbs?)\s*[x×*]\s*(\d+)/i);
+    if (w) { const kg = parseFloat(w[1].replace(",", ".")) * (/lb/i.test(w[2]) ? 0.4536 : 1); return { kg: Math.max(0, r1(kg)), reps: +w[3] }; }
+    const prefix = l.match(/^(?:set\s+\w{1,3}\s*:?\s*|w\s*:\s*)/i);
+    const rest = prefix ? l.slice(prefix[0].length) : l;
+    if (prefix || /^\d+\s*reps?$/i.test(l) || /^\d+:\d{2}$/.test(l)) {
+      const reps = rest.match(/^(\d+)\s*reps?\b/i), mmss = rest.match(/^(\d+):(\d{2})\b/), secs = rest.match(/^(\d+)\s*s(?:ec)?\b/i);
+      if (reps) return { kg: 0, reps: +reps[1] };
+      if (mmss) return { sec: +mmss[1] * 60 + +mmss[2] };
+      if (secs) return { sec: +secs[1] };
+      if (prefix) return { raw: l.slice(0, 40) };
+    }
+    return null;
+  }
   function parseHevy(txt) {
-    const lines = String(txt).split(/\r?\n/).map((l) => l.trim());
-    const nonEmpty = lines.filter(Boolean);
-    if (!nonEmpty.length) return null;
-    const title = nonEmpty[0];
-    let date = null, url = null, durationMin = null, pending = null, cur = null;
+    const all = String(txt).split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+    if (!all.length) return null;
+    const lines = all.filter((l) => !/^@hevy/i.test(l));
+    let url = null, durationMin = null, pending = null, cur = null, title = null, date = null;
+    const di = lines.findIndex((l) => parseLooseDate(l));
+    if (di >= 0) {
+      date = parseLooseDate(lines[di]);
+      const next = lines[di + 1], after = lines[di + 2];
+      // Web page: the title comes right after the date. Text share: the title is the line before it.
+      if (next && !hevySet(next) && !HEVY_NOISE.test(next) && after && !hevySet(after) && !/^sets?$/i.test(after)) title = next;
+      else if (di > 0) title = lines[di - 1];
+    }
     const exercises = [];
-    const wRe = /(-?\d+(?:[.,]\d+)?)\s*(kg|lbs?)\s*[x×*]\s*(\d+)/i;
-    for (const l of nonEmpty.slice(1)) {
+    for (let i = 0; i < lines.length; i++) {
+      const l = lines[i];
       const u = l.match(/https?:\/\/\S*hevy\S*/i);
       if (u) { url = u[0]; continue; }
-      if (/^@hevy/i.test(l)) continue;
-      if (!date) { const d = parseLooseDate(l); if (d) { date = d; continue; } }
-      const dur = l.match(/duration[:\s]*(?:(\d+)\s*h)?\s*(?:(\d+)\s*m)?/i);
-      if (dur && (dur[1] || dur[2])) { durationMin = (+dur[1] || 0) * 60 + (+dur[2] || 0); continue; }
-      let set = null;
-      const m = l.match(wRe);
-      if (m) { const kg = parseFloat(m[1].replace(",", ".")) * (/lb/i.test(m[2]) ? 0.4536 : 1); set = { kg: r1(kg), reps: +m[3] }; }
-      else if (/^set\b/i.test(l) || /^w\s*:/i.test(l)) {
-        const reps = l.match(/(\d+)\s*reps?\b/i), sec = l.match(/(\d+):(\d{2})/), secs = l.match(/(\d+)\s*s(?:ec)?\b/i);
-        set = reps ? { kg: 0, reps: +reps[1] } : sec ? { sec: +sec[1] * 60 + +sec[2] } : secs ? { sec: +secs[1] } : { raw: l.slice(0, 40) };
-      }
+      if (i === di || l === title) continue;
+      if (/^duration$/i.test(l) && hevyDuration(lines[i + 1]) != null) { durationMin = hevyDuration(lines[++i]); continue; }
+      const inline = l.match(/^duration[:\s]+(.+)$/i);
+      if (inline && hevyDuration(inline[1].trim()) != null) { durationMin = hevyDuration(inline[1].trim()); continue; }
+      const set = hevySet(l);
       if (set) {
         if (pending) { cur = { name: pending.slice(0, 80), sets: [] }; exercises.push(cur); pending = null; }
         if (cur) cur.sets.push(set);
-      } else pending = l;
+      } else if (!HEVY_NOISE.test(l)) pending = l;
     }
-    return { title: title.slice(0, 80), date, url, durationMin, exercises: exercises.filter((e) => e.sets.length) };
+    return { title: String(title || lines[0]).slice(0, 80), date, url, durationMin, exercises: exercises.filter((e) => e.sets.length) };
   }
   function sheetHevy(sh) {
     if (!sh.parsed) {
       return `${head("Add a Hevy workout")}
-        <p class="muted">In Hevy, open the workout, tap Share, then copy it as text and paste it here.</p>
-        <textarea id="h-text" rows="9" placeholder="Push A&#10;Monday, Oct 19, 2026 at 6:10pm&#10;&#10;Incline Bench Press (Dumbbell)&#10;Set 1: 20 kg x 10&#10;Set 2: 20 kg x 9">${esc(sh.text || "")}</textarea>
+        <p class="muted">Open your Hevy workout link in Chrome, select all the text on the page, copy it, and paste it here. The phone reads it itself, with no AI.</p>
+        <textarea id="h-text" rows="9" placeholder="Afternoon workout&#10;Sep 14, 2026, 8:33 AM&#10;Chest Press (Machine)&#10;1&#10;50kg x 12 reps&#10;2&#10;50kg x 12 reps">${esc(sh.text || "")}</textarea>
         ${sh.error ? `<p class="err">${esc(sh.error)}</p>` : ""}
+        ${sh.link ? `<a class="btn small" href="${esc(safeUrl(sh.link))}" target="_blank" rel="noopener">Open the workout</a>` : ""}
         ${sh.busy ? `<div class="busy"><span class="spinner"></span><span>Claude is reading the workout…</span></div>` : ""}
         <div class="row end">${aiOn() ? `<button class="btn" data-act="hevy-ai"${sh.busy ? " disabled" : ""}>${I.spark}Read with Claude</button>` : ""}<button class="btn primary" data-act="hevy-parse"${sh.busy ? " disabled" : ""}>Read workout</button></div>`;
     }
@@ -1797,8 +1817,16 @@ Write plain text with no markdown, headings or bold. Exactly five lines, each st
       const sh = S.sheet;
       sh.text = val("h-text");
       const w = parseHevy(sh.text);
-      if (!w || !w.exercises.length) { sh.error = "No sets found in that text. Check it has lines like \"Set 1: 20 kg x 10\", or try Read with Claude."; renderSheet(); return; }
-      sh.parsed = w; sh.error = null; renderSheet();
+      const link = (sh.text.match(/https?:\/\/(?:www\.)?hevy\.com\/(?:workout|user)\/[\w-]+/i) || [])[0];
+      if (!w || !w.exercises.length) {
+        sh.link = link || null;
+        const profile = (link && /\/user\//i.test(link)) || /^\d+\s+sets?\s+\S/im.test(sh.text);
+        sh.error = profile ? "That's your Hevy profile. It only lists exercises from your latest workout, without weights or reps. Open the workout itself, then copy that page."
+          : link ? "A link on its own can't be read: Hevy only shows the sets on its own page. Open the workout below, select all the text on the page, copy it, and paste it here."
+          : "No sets found in that text. Paste the whole workout page, with lines like \"50kg x 12 reps\".";
+        renderSheet(); return;
+      }
+      sh.parsed = w; sh.error = null; sh.link = null; renderSheet();
     },
     async "hevy-ai"() {
       const sh = S.sheet;
@@ -1824,9 +1852,12 @@ Write plain text with no markdown, headings or bold. Exactly five lines, each st
       const date = val("h-date") || today();
       const hid = w.url && (w.url.match(/workout\/([A-Za-z0-9_-]+)/) || [])[1];
       const doc = { date, title: val("h-title").trim() || w.title || "Workout", durationMin: num(val("h-dur")), exercises: w.exercises, volumeKg: r0(volumeOf(w.exercises)), url: w.url || null, src: "hevy-text", t: Date.now() };
-      Store.put("workouts", hid ? "hevy-" + hid : "w-" + uid(), doc);
+      // Same Hevy link, or same day and same volume: treat it as the same workout and update it.
+      const id = hid ? "hevy-" + hid : `w-${date}-${doc.volumeKg}`;
+      const existed = !!S.col.workouts[id];
+      Store.put("workouts", id, doc);
       closeSheet();
-      toast("Workout saved");
+      toast(existed ? "Workout updated" : "Workout saved");
     },
     delwo(el) { if (!armed(el)) return; Store.del("workouts", el.dataset.id); },
     savemeasure() {
