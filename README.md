@@ -1,6 +1,6 @@
 # Beach Body
 
-A personal, phone-first log for food, training and body progress, built around a swimmer's-physique program: a 6-day push/pull/legs split, running from zero, and an Indian vegetarian-plus-chicken diet.
+A personal, phone-first log for food, training and body progress, built for a swimmer's-physique goal and an Indian vegetarian-plus-chicken diet.
 
 It is a static web app with no server and no accounts. Everything you enter, progress photos included, is stored in your browser's IndexedDB on the device you use it on. Nothing is uploaded. Use **Settings → Download backup** regularly.
 
@@ -10,7 +10,7 @@ A passcode keeps other people out of the app: each device asks for it once. `acc
 
 - **Food:** instant search across a hand-checked list of common Indian foods, your saved foods, saved meals and recent items. Optionally, the [Indian Nutrient Databank](https://github.com/lindsayjaacks/Indian-Nutrient-Databank-INDB-) (Jaacks Lab, University of Edinburgh) is downloaded once from its source onto your device. Macros plus 12 micronutrients per day.
 - **Claude estimates (optional):** uses Claude Haiku 5.5. For a dish that isn't in the database, photograph it or describe it and Claude estimates the nutrition. Every estimated item is saved so it's an instant search next time. Uses your own Anthropic API key, kept on your device and sent only to `api.anthropic.com`.
-- **Training:** the weekly plan, a run-from-zero schedule, cardio logging, and Hevy workouts pasted as text.
+- **Training:** Hevy workouts pasted from their web page (read on the device, no AI), cardio logging, and a Sunday-to-Saturday week view.
 - **Body:** daily weight with a 7-day average, weekly measurements, and front/side/back progress photos with side-by-side comparison.
 - **Trends:** calories, protein, steps and weight charts, a weekly fat-loss rate check, and an optional weekly review written by Claude.
 
