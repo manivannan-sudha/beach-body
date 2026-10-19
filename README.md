@@ -8,10 +8,10 @@ A passcode keeps other people out of the app: each device asks for it once. `acc
 
 ## Features
 
-- **Food:** instant, offline search across a built-in list of South Indian and other Indian foods, your saved foods, saved meals and recent items. South Indian dishes are computed from standard home recipes (ingredient grams, oil absorbed when fried, cooked weight) using IFCT 2017 and USDA ingredient values, so values are per 100 g as eaten. Macros plus 12 micronutrients per day.
+- **Food:** instant, offline search across a built-in list of South Indian and other Indian foods, raw proteins, fruit, juices, nuts, protein powders and air fryer dishes, plus your saved foods, saved meals and recent items. Each food has one entry, and Claude's estimates reuse it. South Indian dishes are computed from standard home recipes (ingredient grams, oil absorbed when fried, cooked weight) using IFCT 2017 and USDA ingredient values, so values are per 100 g as eaten. Macros plus 12 micronutrients per day.
 - **Claude estimates (optional):** uses Claude Haiku 5.5. For a dish that isn't in the database, photograph it or describe it and Claude estimates the nutrition. Every estimated item is saved so it's an instant search next time. Uses your own Anthropic API key, kept on your device and sent only to `api.anthropic.com`.
 - **Training:** Hevy workouts pasted from their web page (read on the device, no AI), cardio logging, and a Sunday-to-Saturday week view.
-- **Body:** daily weight with a 7-day average, weekly measurements, and front/side/back progress photos with side-by-side comparison.
+- **Body:** daily weight with a 7-day average, weekly measurements in inches with a US Navy body fat estimate, and front/side/back progress photos with side-by-side comparison.
 - **Trends:** calories, protein, steps and weight charts, a weekly fat-loss rate check, and an optional weekly review written by Claude.
 
 ## Install

@@ -63,11 +63,13 @@
   const mealLabel = (k) => (MEALS.find((m) => m[0] === k) || [k, "Other"])[1];
   const CARDIO = [["run", "Run"], ["walk", "Walk"], ["cycle", "Indoor cycling"], ["swim", "Swim"], ["football", "Football"], ["other", "Other"]];
   const cardioLabel = (k) => (CARDIO.find((c) => c[0] === k) || [k, cap(String(k || "Cardio"))])[1];
+  // Weekly check-in spots, in inches. The numbers are the user's first check-in (19 Oct 2026).
   const MEAS = [
-    { k: "waist", l: "Waist (navel)" }, { k: "chest", l: "Chest" }, { k: "shoulders", l: "Shoulders" },
-    { k: "arm", l: "Arm (flexed)" }, { k: "thigh", l: "Thigh" }, { k: "hips", l: "Hips" },
-    { k: "calf", l: "Calf" }, { k: "neck", l: "Neck" }, { k: "bf", l: "Body fat", u: "%" },
+    { k: "chest", l: "Chest", v: 38 }, { k: "belly", l: "Belly (navel)", v: 36 }, { k: "iwline", l: "Inner wear line", s: "IW line", v: 35.5 },
+    { k: "bum", l: "Bum (widest)", v: 41 }, { k: "thighU", l: "Upper thigh", s: "Up thigh", v: 26 }, { k: "thighL", l: "Lower thigh", s: "Low thigh", v: 18 },
+    { k: "neck", l: "Neck", v: 16 }, { k: "bicep", l: "Bicep (flexed)", v: 13.8 }, { k: "bf", l: "Body fat", s: "Fat %", u: "%" },
   ];
+  const FIRST_CHECKIN = "2026-10-19";
   const POSES = ["front", "side", "back"];
   // Starting numbers the user gave on 18 Oct 2026: 80 kg, 177 cm, 2,200 kcal. Settings overrides them.
   const DEFAULT_PROFILE = { name: "", sex: "male", age: 24, heightCm: 177, weightKg: 80, goalKg: null, activity: 1.55, deficit: 20, proteinMax: 120, stepGoal: 6000, override: { kcal: 2200 } };
@@ -636,16 +638,16 @@
   function nutritionGuide() {
     const t = targets();
     const prot = [
-      ["Chicken breast (cooked, skinless)", 150, "150 g cooked"], ["Soya chunks (dry)", 50, "50 g dry"], ["Paneer (low fat)", 100, "100 g"],
-      ["Whey protein", 32, "1 scoop"], ["Greek yogurt / hung curd (low fat)", 200, "200 g"], ["Tofu (firm)", 100, "100 g"],
+      ["Chicken breast (raw)", 150, "150 g raw"], ["Soya chunks (raw)", 50, "50 g dry"], ["Paneer (raw)", 100, "100 g"],
+      ["Whey protein", 32, "1 scoop"], ["Greek yogurt (plain)", 200, "200 g"], ["Tofu (firm)", 100, "100 g"],
       ["Pesarattu", 150, "2 pesarattu"], ["Chana sundal", 100, "1 cup"], ["Chole / chana masala", 150, "1 katori"], ["Dal tadka (toor)", 150, "1 katori"],
       ["Milk (toned, 3%)", 250, "1 glass"], ["Roasted chana", 30, "1 handful"],
     ];
     const dayPlan = [
-      ["Breakfast", "3 idlis + 1 katori sambar + 2 tbsp coconut chutney + 150 g hung curd", [["Idli", 135], ["Sambar", 150], ["Coconut chutney", 30], ["Greek yogurt / hung curd (low fat)", 150]]],
-      ["Lunch", "1 cup rice + 1 katori chicken chettinad + beans poriyal + rasam", [["Steamed white rice", 150], ["Chicken chettinad", 150], ["Beans poriyal", 100], ["Rasam", 150]]],
+      ["Breakfast", "3 idlis + 1 katori sambar + 2 tbsp coconut chutney + 150 g hung curd", [["Idli", 135], ["Sambar", 150], ["Coconut chutney", 30], ["Greek yogurt (plain)", 150]]],
+      ["Lunch", "1 cup rice + 1 katori chicken curry + beans poriyal + rasam", [["Rice (cooked)", 150], ["Chicken curry (South Indian)", 150], ["Beans poriyal", 100], ["Rasam", 150]]],
       ["Before gym", "Banana + 1 cup chana sundal", [["Banana", 110], ["Chana sundal", 100]]],
-      ["Dinner", "2 pesarattu + 1 katori sambar + 100 g low-fat paneer", [["Pesarattu", 150], ["Sambar", 150], ["Paneer (low fat)", 100]]],
+      ["Dinner", "2 pesarattu + 1 katori sambar + 75 g paneer", [["Pesarattu", 150], ["Sambar", 150], ["Paneer (raw)", 75]]],
       ["Night", "1 glass toned milk", [["Milk (toned, 3%)", 250]]],
     ];
     const dayTot = zeroN();
@@ -663,7 +665,7 @@
         <li>Measure cooking oil. One tablespoon is about 120 kcal; ask for 1–2 teaspoons per dish.</li>
         <li>Split protein into four servings of 25–35 g: every meal plus one snack.</li>
         <li>Fill half the plate with poriyal, kootu or salad. Fiber target is 35 g.</li>
-        <li>Eat most of your rice, dosa and roti in the meals before and after training.</li>
+        <li>Eat most of your rice, dosa and chapati in the meals before and after training.</li>
         <li>Keep coffee and tea an hour away from dal, keerai and chana so you absorb the iron; lemon or amla helps.</li>
         <li>Vada, bonda, murukku and sweets are fine when planned and logged. Keep them under 10% of calories.</li>
       </ul>
@@ -674,7 +676,7 @@
       <ul class="plain">
         <li>Creatine monohydrate, 3–5 g a day. Vegetarians tend to respond well to it.</li>
         <li>Vitamin B12 and D3: get a blood test first. Both are commonly low in Indian vegetarians.</li>
-        <li>Whey, only on days you fall short of protein.</li>
+        <li>A scoop of protein (whey, or a plant or yeast protein), only on days you fall short.</li>
         <li>Omega-3: a tablespoon of ground flax or a few walnuts a day.</li>
       </ul>
       <small>General guidance, not medical advice. Check with a doctor if you have a health condition.</small>`;
@@ -719,13 +721,26 @@
     });
   }
 
+  // US Navy tape method for men, in inches: 86.010·log10(belly − neck) − 70.041·log10(height) + 36.76. About ±3–4%.
+  function navyBodyFat(belly, neck) {
+    const p = prof(), h = num(p.heightCm) / 2.54;
+    if (p.sex === "female" || !(neck > 0) || !(belly > neck) || !(h > 0)) return null;
+    return r1(86.01 * Math.log10(belly - neck) - 70.041 * Math.log10(h) + 36.76);
+  }
+  const bfNote = (est) => est == null ? "Add belly, neck and your height (Settings) to estimate body fat." : `Body fat about ${fmt(est, 1)}% from belly, neck and height (US Navy tape method, ±3–4%). Leave it blank to use this, or type a reading from a scale or calipers.`;
   function checkinCard() {
     const d = S.ui.bodyDate;
     const m = S.col.measures[d] || {};
     const earlier = Object.values(S.col.measures).filter((x) => x && x.date < d).sort((a, b) => (a.date < b.date ? 1 : -1))[0];
+    const hint = (f) => (earlier && earlier[f.k] != null ? "last " + fmt(earlier[f.k], 1) : f.v != null ? String(f.v) : "–");
+    const est = navyBodyFat(num(m.belly), num(m.neck));
     return `<section class="card"><div class="card-h"><h2>Weekly check-in</h2><label class="row" for="m-date" style="font-size:13px;font-weight:600;color:var(--ink-2)">Date <input id="m-date" type="date" value="${d}" data-change="mdate" style="width:auto"></label></div>
-      <p class="muted">Sunday morning, before food. Tape snug, not tight. Waist at the navel, arm flexed at its widest point, thigh 15 cm above the kneecap.</p>
-      <div class="grid3">${MEAS.map((f) => `<label class="f${f.k === "bf" ? " span-n" : ""}" for="m-${f.k}">${f.l}<div class="inp-u"><input id="m-${f.k}" type="number" inputmode="decimal" step="0.1" min="0" value="${m[f.k] == null ? "" : m[f.k]}" placeholder="${earlier && earlier[f.k] != null ? "last " + fmt(earlier[f.k], 1) : "–"}"><em>${f.u || "cm"}</em></div></label>`).join("")}</div>
+      <p class="muted">Sunday morning, before food, in inches. Tape snug, not tight: chest at the nipple line, belly at the navel, inner wear line where your waistband sits, bum at its widest, upper thigh just below the glute, lower thigh just above the knee, neck just below the Adam's apple, bicep flexed at its peak.</p>
+      <div class="grid3">${MEAS.map((f) => {
+        const isBf = f.k === "bf", v = isBf && m.bfEst ? null : m[f.k];
+        return `<label class="f${isBf ? " span-n" : ""}" for="m-${f.k}">${f.l}<div class="inp-u"><input id="m-${f.k}" type="number" inputmode="decimal" step="0.1" min="0" value="${v == null ? "" : v}" placeholder="${isBf ? (est == null ? "–" : "about " + fmt(est, 1)) : hint(f)}"${f.k === "belly" || f.k === "neck" ? ` data-input="meas"` : ""}><em>${f.u || "in"}</em></div></label>`;
+      }).join("")}</div>
+      <small id="m-bf-note">${bfNote(est)}</small>
       <div class="row end"><button class="btn primary" data-act="savemeasure">Save check-in</button></div>
       <hr class="sep">
       <div class="card-h"><h3>Progress photos</h3><small>Same spot, same light, same distance</small></div>
@@ -742,13 +757,13 @@
     if (!list.length) return `<section class="card"><h2>Check-in history</h2><p class="empty">Your first check-in becomes the baseline. Do it before week 1 starts.</p></section>`;
     const cols = MEAS.filter((f) => list.some((m) => m[f.k] != null));
     const first = list[list.length - 1], last = list[0];
-    const waist = list.filter((m) => m.waist != null).slice().reverse();
+    const belly = list.filter((m) => m.belly != null).slice().reverse();
     return `<section class="card"><h2>Check-in history</h2>
-      <div class="tbl-wrap"><table class="tbl"><thead><tr><th>Date</th>${cols.map((f) => `<th class="n">${esc(f.l.replace(/ \(.*\)/, ""))}</th>`).join("")}</tr></thead><tbody>
+      <div class="tbl-wrap"><table class="tbl"><thead><tr><th>Date</th>${cols.map((f) => `<th class="n">${esc(f.s || f.l.replace(/ \(.*\)/, ""))}</th>`).join("")}</tr></thead><tbody>
         ${list.length > 1 ? `<tr class="cur"><td><b>Change</b></td>${cols.map((f) => `<td class="n"><b>${first[f.k] != null && last[f.k] != null ? signed(last[f.k] - first[f.k], 1) : "–"}</b></td>`).join("")}</tr>` : ""}
         ${list.map((m) => `<tr><td><button class="link" data-act="bodydate" data-date="${m.date}">${esc(fmtDate(m.date, { day: "numeric", month: "short" }))}</button></td>${cols.map((f) => `<td class="n">${m[f.k] != null ? fmt(m[f.k], 1) : "–"}</td>`).join("")}</tr>`).join("")}
       </tbody></table></div>
-      ${waist.length > 1 ? `<h3>Waist</h3>${chart("waist", { label: "Waist measurement at each check-in", dates: waist.map((m) => m.date), unit: "cm", dec: 1, endLabel: true, series: [{ name: "Waist", kind: "line", color: "var(--accent)", vals: new Map(waist.map((m) => [m.date, m.waist])) }] })}` : ""}
+      ${belly.length > 1 ? `<h3>Belly</h3>${chart("belly", { label: "Belly measurement at each check-in", dates: belly.map((m) => m.date), unit: "in", dec: 1, endLabel: true, series: [{ name: "Belly", kind: "line", color: "var(--accent)", vals: new Map(belly.map((m) => [m.date, m.belly])) }] })}` : ""}
     </section>`;
   }
 
@@ -759,7 +774,7 @@
     const b = withPhotos.find((m) => m.date === S.ui.cmpB) || withPhotos[withPhotos.length - 1];
     const pose = S.ui.cmpPose || "front";
     const opts = (sel) => withPhotos.map((m) => `<option value="${m.date}"${m.date === sel ? " selected" : ""}>${esc(fmtDate(m.date, { day: "numeric", month: "short", year: "numeric" }))}</option>`).join("");
-    const fig = (m) => `<figure>${m.photos[pose] && Photos.url(m.photos[pose]) ? `<img src="${esc(Photos.url(m.photos[pose]))}" alt="${cap(pose)} photo, ${esc(fmtDate(m.date))}">` : `<div class="ph-empty">No ${pose} photo</div>`}<figcaption>${esc(fmtDate(m.date, { day: "numeric", month: "short" }))}${m.waist != null ? " · waist " + fmt(m.waist, 1) + " cm" : ""}</figcaption></figure>`;
+    const fig = (m) => `<figure>${m.photos[pose] && Photos.url(m.photos[pose]) ? `<img src="${esc(Photos.url(m.photos[pose]))}" alt="${cap(pose)} photo, ${esc(fmtDate(m.date))}">` : `<div class="ph-empty">No ${pose} photo</div>`}<figcaption>${esc(fmtDate(m.date, { day: "numeric", month: "short" }))}${m.belly != null ? " · belly " + fmt(m.belly, 1) + " in" : ""}</figcaption></figure>`;
     return `<section class="card"><h2>Compare photos</h2>
       <div class="seg" role="group" aria-label="Pose">${POSES.map((p) => `<button data-act="cmppose" data-pose="${p}" aria-pressed="${p === pose}">${cap(p)}</button>`).join("")}</div>
       <div class="grid2"><label class="f" for="cmp-a">Before<select id="cmp-a" data-change="cmpa">${opts(a.date)}</select></label><label class="f" for="cmp-b">After<select id="cmp-b" data-change="cmpb">${opts(b.date)}</select></label></div>
@@ -1002,19 +1017,45 @@
       ${body}`;
   }
 
-  function searchFoods(q) {
-    const toks = q.toLowerCase().split(/\s+/).filter(Boolean);
-    if (!toks.length) return null;
+  const normName = (s) => String(s || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+  const wordSet = (s) => s.split(" ").sort().join(" ");
+  // The names a food answers to exactly: "Curd / dahi (whole milk)" is "curd dahi whole milk", "curd dahi", "curd" and "dahi".
+  function nameKeys(f) {
+    if (!f._keys) {
+      const base = f.name.replace(/\s*\([^)]*\)/g, "");
+      f._keys = Array.from(new Set([f.name, base].concat(base.split("/")).map((x) => wordSet(normName(x))).filter(Boolean)));
+    }
+    return f._keys;
+  }
+  function myFoodList() {
     const mf = myFoods();
-    const mine = Object.keys(mf).filter((id) => mf[id] && mf[id].per100).map((id) => ({ id: "m:" + id, name: mf[id].name, serving: mf[id].serving || { label: "100 g", g: 100 }, per100: mf[id].per100, aliases: "", mine: true }));
-    // Your saved foods first, then the built-in list.
-    return mine.concat(window.FOODS).map((f) => {
-      const hay = (f.name + " " + f.aliases).toLowerCase();
-      if (!toks.every((t) => hay.includes(t))) return null;
-      const name = f.name.toLowerCase();
-      // Name starts with the word, then the word is in the name, then it only matched an alias.
-      return { f, score: (name.startsWith(toks[0]) ? 0 : 1) + (toks.every((t) => name.includes(t)) ? 0 : 0.5) - (f.mine ? 0.5 : 0) };
+    return Object.keys(mf).filter((id) => mf[id] && mf[id].per100).map((id) => ({ id: "m:" + id, name: mf[id].name, serving: mf[id].serving || { label: "100 g", g: 100 }, per100: mf[id].per100, aliases: "", mine: true, t: mf[id].t || 0 }));
+  }
+  function searchFoods(q) {
+    const toks = normName(q).split(" ").filter(Boolean);
+    if (!toks.length) return null;
+    const qk = wordSet(toks.join(" "));
+    const mine = myFoodList();
+    // Each food shows once: a saved food with the same name as a built-in one takes its place.
+    const mineNames = new Set(mine.map((f) => normName(f.name)));
+    return mine.concat(window.FOODS.filter((f) => !mineNames.has(normName(f.name)))).map((f) => {
+      const name = normName(f.name);
+      if (!toks.every((t) => (name + " " + normName(f.aliases)).includes(t))) return null;
+      // Exact name first, then the name starts with the word, then a word in the name starts with it, then the rest.
+      return { f, score: (nameKeys(f).includes(qk) ? -2 : 0) + (name.startsWith(toks[0]) ? 0 : 1) + (toks.every((t) => (" " + name).includes(" " + t)) ? 0 : 0.5) - (f.mine ? 0.5 : 0) };
     }).filter(Boolean).sort((a, b) => a.score - b.score || a.f.name.length - b.f.name.length).slice(0, 40).map((x) => x.f);
+  }
+  // The built-in food an estimated item clearly is, so it gets the list's values instead of a second set:
+  // its exact name ("Dosa", "Rice", "Chapati"), or a phrase that only one food lists ("plain dosa", "steamed rice").
+  function dbFood(itemName) {
+    const q = normName(itemName);
+    if (!q) return null;
+    const exact = window.FOODS.find((f) => normName(f.name) === q);
+    if (exact) return exact;
+    const named = window.FOODS.filter((f) => nameKeys(f).includes(wordSet(q)));
+    if (named.length) return named.length === 1 ? named[0] : null;
+    const alias = window.FOODS.filter((f) => (" " + normName(f.aliases) + " ").includes(" " + q + " "));
+    return alias.length === 1 ? alias[0] : null;
   }
   function recentFoods() {
     const out = [], seen = new Set();
@@ -1041,10 +1082,7 @@
       if (!res.length) return `<p class="empty">No match. Try another word${aiOn() ? ", or let Claude estimate it under Photo or Describe" : ", or add it under Manual"}.</p>`;
       return `<ul class="flist">${res.map(foodRow).join("")}</ul>`;
     }
-    const mf = myFoods();
-    const mine = Object.keys(mf).filter((id) => mf[id] && mf[id].per100)
-      .map((id) => ({ id: "m:" + id, name: mf[id].name, serving: mf[id].serving || { label: "100 g", g: 100 }, per100: mf[id].per100, aliases: "", mine: true, t: mf[id].t || 0 }))
-      .sort((a, b) => b.t - a.t).slice(0, 8);
+    const mine = myFoodList().sort((a, b) => b.t - a.t).slice(0, 8);
     const mineNames = new Set(mine.map((f) => f.name.toLowerCase()));
     const recent = recentFoods().filter((f) => !mineNames.has(f.name.toLowerCase()));
     sh.opts = Object.fromEntries(mine.concat(recent).map((f) => [f.id, f]));
@@ -1083,11 +1121,11 @@
   function resTotal(rs) { const t = zeroN(); rs.forEach((r) => addN(t, scaleN(r.n0, r.g / r.g0))); return `Total <b>${fmt(t.kcal)}</b> kcal · ${fmt(t.p)} g protein · ${fmt(t.c)} g carbs · ${fmt(t.f)} g fat`; }
   function resultsEditor(sh) {
     return `${sh.aiNotes ? `<p class="note">${esc(sh.aiNotes)}</p>` : ""}
-      <p class="muted">Check the names and weights. Changing a weight rescales that item.</p>
+      <p class="muted">Check the names and weights. Changing a weight rescales that item. Items marked food list use the list's values.</p>
       <ul class="results">${sh.results.map((r, i) => `<li class="res">
         <div class="res-top"><input type="text" data-input="res-name" data-i="${i}" value="${esc(r.name)}" aria-label="Food name"><button class="icon-btn" data-act="res-del" data-i="${i}" aria-label="Remove ${esc(r.name)}">${I.close}</button></div>
-        <div class="res-bot"><div class="inp-u"><input type="number" inputmode="numeric" min="0" data-input="res-g" data-i="${i}" value="${r1(r.g)}" aria-label="Grams"><em>g</em></div><span class="res-n" id="res-n-${i}">${resNums(r)}</span><span class="chip${r.conf === "low" ? " warn" : ""}">${esc(r.conf)}</span></div>
-        <label class="chk"><input type="checkbox" data-change="res-save" data-i="${i}"${r.save ? " checked" : ""}> Save to My Foods</label>
+        <div class="res-bot"><div class="inp-u"><input type="number" inputmode="numeric" min="0" data-input="res-g" data-i="${i}" value="${r1(r.g)}" aria-label="Grams"><em>g</em></div><span class="res-n" id="res-n-${i}">${resNums(r)}</span>${r.db ? `<span class="chip">food list</span>` : `<span class="chip${r.conf === "low" ? " warn" : ""}">${esc(r.conf)}</span>`}</div>
+        ${r.db ? "" : `<label class="chk"><input type="checkbox" data-change="res-save" data-i="${i}"${r.save ? " checked" : ""}> Save to My Foods</label>`}
       </li>`).join("")}</ul>
       <div class="total-bar"><div class="res-n" id="res-total">${resTotal(sh.results)}</div>
         <div class="row end"><button class="btn" data-act="res-back">Start over</button><button class="btn primary" data-act="res-add">Add to ${mealLabel(sh.meal)}</button></div></div>`;
@@ -1100,9 +1138,9 @@
       nPhotos > 1 ? `Estimate the nutrition of the meal in the ${nPhotos} attached photos. They show the same meal from different angles or its separate dishes, so count each item once.`
         : hasPhoto ? "Estimate the nutrition of the food in the attached photo." : "Estimate the nutrition of the food described below.",
       note ? `The person says: """${String(note).slice(0, 1500)}"""` : "",
-      grams ? `Total weight of all the food: ${grams} g. Split that weight across the items realistically.` : "No total weight was given. Estimate portions from the photo or description using typical South Indian servings: 1 idli about 45 g, 1 plain dosa about 55 g, 1 hotel masala dosa about 200 g, 1 medu vada about 45 g, 1 katori of sambar, kootu or poriyal about 100 to 150 g, 1 cup cooked rice about 150 g, a full meals plate about 900 g, 1 chapati about 40 g.",
+      grams ? `Total weight of all the food: ${grams} g. Split that weight across the items realistically.` : "No total weight was given. Estimate portions from the photo or description using typical South Indian servings: 1 idli about 45 g, 1 plain dosa about 55 g, 1 hotel masala dosa about 200 g, 1 medu vada about 45 g, 1 katori of sambar, kootu or poriyal about 100 to 150 g, 1 cup cooked rice about 150 g, a full meals plate about 900 g, 1 chapati about 42 g.",
       "Assume South Indian home-style cooking (coconut, coconut or gingelly oil, ghee on dosa and pongal) with normal amounts of oil unless it looks like hotel food, and include the cooking fat in each dish's numbers. Deep-fried items such as vada, bonda and bajji absorb oil, so count it. The person eats no eggs and no meat other than chicken, so read ambiguous items accordingly.",
-      "List each distinct item separately (for example rice, dal and sabzi as three items), with a plain name that would make sense in a food list, like \"Rajma curry\" or \"Jeera rice\".",
+      "List each distinct item separately (for example rice, sambar and poriyal as three items). Name each by its plain everyday name, like \"Dosa\", \"Rice\", \"Chapati\", \"Sambar\" or \"Beans poriyal\", with no sizes or adjectives, so it can be matched to the food list.",
       "Units: p (protein), c (carbs), f (fat), fib (fiber), sug (sugar), sf (saturated fat) in grams; na (sodium), k (potassium), ca (calcium), fe (iron), mg (magnesium), zn (zinc), vc (vitamin C) in mg; b12 and vd (vitamin D) in mcg. Every value is the total for that item's grams, not per 100 g. notes is one short sentence on what you assumed.",
     ].filter(Boolean).join("\n");
   }
@@ -1114,6 +1152,11 @@
       NK.forEach((k) => { n[k] = Math.max(0, num(it && it[k]) || 0); });
       return { name: String((it && it.name) || "Food").slice(0, 80), g0: g, g, n0: n, conf: ["high", "medium", "low"].includes(it && it.confidence) ? it.confidence : "medium", save: true };
     }).filter((r) => r.n0.kcal > 0 || r.n0.p > 0);
+  }
+  // An estimated item that is already in the food list takes the list's values, so each food has one set of numbers.
+  function useListValues(r) {
+    const f = dbFood(r.name);
+    return f ? Object.assign(r, { name: f.name, n0: scaleN(f.per100, r.g0 / 100), db: true, save: false }) : r;
   }
   async function estimateFood() {
     const sh = S.sheet;
@@ -1129,7 +1172,7 @@
     try {
       const out = await AI.json(prompt, FOOD_SCHEMA, { images: isPhoto ? blobs : [], signal: sh.ctl.signal, effort: "low" });
       if (S.sheet !== sh) return;
-      const items = normalizeItems(out);
+      const items = normalizeItems(out).map(useListValues);
       if (!items.length) sh.error = "Claude couldn't find food in that. Try a clearer photo, or describe it.";
       else { sh.results = items; sh.aiNotes = String((out && out.notes) || "").slice(0, 300); }
     } catch (e) {
@@ -1340,7 +1383,7 @@
 
       <hr class="sep">
       <h3>Food database</h3>
-      <p class="muted">Built in: South Indian tiffin, rice, curries, chutneys, snacks and sweets, plus common North Indian and chicken dishes. Values are per 100 g as eaten (cooked weight), worked out from standard home recipes with IFCT 2017 and USDA ingredient values. Anything Claude estimates is saved to My foods.</p>
+      <p class="muted">Built in: South Indian tiffin, rice, curries, chutneys, snacks and sweets, common North Indian and chicken dishes, fruit and juices, nuts and seeds, fast food, air fryer dishes, and plant and yeast protein powders. Dishes are per 100 g as eaten (cooked weight), worked out from standard home recipes with IFCT 2017 and USDA ingredient values. Raw chicken, paneer, soya chunks and oats are per 100 g as bought. When Claude estimates something already in the list, it uses the list's values; anything new is saved to My foods.</p>
       ${smIds.length ? `<h3>Saved meals</h3><ul class="items">${smIds.map((id) => { const m = sm[id], k = m.items.reduce((a, e) => a + (Number(e.n && e.n.kcal) || 0), 0); return `<li class="item" style="cursor:default"><div class="nm">${esc(m.name)}<small>${m.items.length} item${m.items.length === 1 ? "" : "s"} · ${fmt(k)} kcal</small></div><span></span><button class="icon-btn" data-act="delsaved" data-id="${esc(id)}" aria-label="Delete ${esc(m.name)}">${I.trash}</button></li>`; }).join("")}</ul>` : ""}
 
       <hr class="sep">
@@ -1650,10 +1693,10 @@ Write plain text with no markdown, headings or bold. Exactly five lines, each st
     "res-back"() { S.sheet.results = null; renderSheet(); },
     "res-add"() {
       const sh = S.sheet;
-      const list = sh.results.filter((r) => r.g > 0).map((r) => ({ name: r.name.trim() || "Food", g: r.g, n: scaleN(r.n0, r.g / r.g0), src: "ai" }));
+      const list = sh.results.filter((r) => r.g > 0).map((r) => ({ name: r.name.trim() || "Food", g: r.g, n: scaleN(r.n0, r.g / r.g0), src: r.db ? "db" : "ai" }));
       if (!list.length) { toast("Every item has 0 g"); return; }
       addEntries(sh.date, sh.meal, list);
-      sh.results.filter((r) => r.save && r.g > 0).forEach((r) => saveMyFood(r.name.trim() || "Food", scaleN(r.n0, r.g / r.g0), r.g));
+      sh.results.filter((r) => r.save && !r.db && r.g > 0).forEach((r) => saveMyFood(r.name.trim() || "Food", scaleN(r.n0, r.g / r.g0), r.g));
       closeSheet();
     },
     entry(el) { openSheet({ type: "entry", id: el.dataset.id, date: S.ui.date }); },
@@ -1746,6 +1789,10 @@ Write plain text with no markdown, headings or bold. Exactly five lines, each st
       const d = val("m-date") || S.ui.bodyDate || today();
       const patch = { date: d };
       MEAS.forEach((f) => { patch[f.k] = num(val("m-" + f.k)); });
+      // No body fat typed: save the tape estimate, marked so the next edit recalculates it.
+      const est = patch.bf == null ? navyBodyFat(patch.belly, patch.neck) : null;
+      patch.bfEst = est == null ? null : true;
+      if (est != null) patch.bf = est;
       Store.patch("measures", d, patch);
       toast("Check-in saved");
     },
@@ -1769,6 +1816,11 @@ Write plain text with no markdown, headings or bold. Exactly five lines, each st
   };
 
   const INP = {
+    meas() {
+      const est = navyBodyFat(num(val("m-belly")), num(val("m-neck"))), bf = $("#m-bf"), note = $("#m-bf-note");
+      if (bf) bf.placeholder = est == null ? "–" : "about " + fmt(est, 1);
+      if (note) note.textContent = bfNote(est);
+    },
     "food-search"(el) { S.sheet.query = el.value; const box = $("#f-results"); if (box) box.innerHTML = foodOptions(S.sheet); },
     pick(el) {
       const sh = S.sheet, unitEl = $("#p-unit"), qEl = $("#p-qty");
@@ -1927,7 +1979,20 @@ Write plain text with no markdown, headings or bold. Exactly five lines, each st
     started = true;
     render();
     lastW = ($("#view") && $("#view").clientWidth) || 0;
-    Store.init();
+    Store.init().then(seedFirstCheckin);
+  }
+  // Saves the user's first check-in (the MEAS numbers) once per device; if it's deleted later, it stays deleted.
+  async function seedFirstCheckin() {
+    if (Store.mode !== "device" || S.meta.firstCheckin) return;
+    const m = S.col.measures[FIRST_CHECKIN] || {};
+    if (!MEAS.some((f) => m[f.k] != null)) {
+      const doc = { date: FIRST_CHECKIN };
+      MEAS.forEach((f) => { if (f.v != null) doc[f.k] = f.v; });
+      const bf = navyBodyFat(doc.belly, doc.neck);
+      if (bf != null) Object.assign(doc, { bf, bfEst: true });
+      await Store.patch("measures", FIRST_CHECKIN, doc);
+    }
+    await Store.setMeta("firstCheckin", FIRST_CHECKIN);
   }
   async function boot() {
     try {
