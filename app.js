@@ -134,8 +134,8 @@
         const [keys, vals] = await Promise.all([IDB.keys("docs"), IDB.values("docs")]);
         keys.forEach((k, i) => { const j = String(k).indexOf("/"); const c = k.slice(0, j); if (S.col[c]) S.col[c][k.slice(j + 1)] = vals[i]; });
         for (const k of await IDB.keys("meta")) { if (k !== "indb") S.meta[k] = await IDB.get("meta", k); }
-        const indb = await IDB.get("meta", "indb");
-        if (indb && Array.isArray(indb.foods)) setIndbFoods(indb.foods, indb.at);
+        // The databank copy is no longer used (its values were by raw ingredient weight): free the space.
+        IDB.del("meta", "indb").catch(() => {});
         this.mode = "device";
       } catch (e) {
         console.warn("storage unavailable", e);
@@ -205,35 +205,6 @@
       if (Store.mode === "device") await IDB.del("photos", v).catch(() => {});
     },
   };
-
-  // ---------- Indian Nutrient Databank, downloaded once and kept on the device ----------
-  let INDB_FOODS = [];
-  function setIndbFoods(rows, at) {
-    INDB_FOODS = rows.map((r) => {
-      const per100 = {};
-      NK.forEach((k, j) => { per100[k] = r[4 + j]; });
-      return { id: "i" + r[0], name: r[1], serving: { label: r[2], g: r[3] }, per100, aliases: "", indb: true };
-    });
-    S.indbAt = at || null;
-  }
-  async function downloadIndb() {
-    if (S.indbBusy) return;
-    S.indbBusy = true; S.indbError = null;
-    if (S.sheet && S.sheet.type === "settings") renderSheet();
-    try {
-      const { foods } = await window.INDB.download();
-      const at = new Date().toISOString();
-      setIndbFoods(foods, at);
-      if (Store.mode === "device") await IDB.put("meta", "indb", { at, foods });
-      toast("Indian dish database is ready for search");
-    } catch (e) {
-      console.warn("indb", e);
-      S.indbError = navigator.onLine === false ? "You're offline. Connect and try again." : "Couldn't download the dish database. Try again later.";
-    }
-    S.indbBusy = false;
-    if (S.sheet) renderSheet();
-    scheduleRender();
-  }
 
   // ---------- Claude, through the official Anthropic SDK, with the key kept on this device ----------
   const SDK_URL = "https://cdn.jsdelivr.net/npm/@anthropic-ai/sdk@0.131.0/+esm";
@@ -667,14 +638,14 @@
     const prot = [
       ["Chicken breast (cooked, skinless)", 150, "150 g cooked"], ["Soya chunks (dry)", 50, "50 g dry"], ["Paneer (low fat)", 100, "100 g"],
       ["Whey protein", 32, "1 scoop"], ["Greek yogurt / hung curd (low fat)", 200, "200 g"], ["Tofu (firm)", 100, "100 g"],
-      ["Moong dal chilla", 160, "2 chillas"], ["Chole / chana masala", 150, "1 katori"], ["Dal tadka (toor)", 150, "1 katori"],
+      ["Pesarattu", 150, "2 pesarattu"], ["Chana sundal", 100, "1 cup"], ["Chole / chana masala", 150, "1 katori"], ["Dal tadka (toor)", 150, "1 katori"],
       ["Milk (toned, 3%)", 250, "1 glass"], ["Roasted chana", 30, "1 handful"],
     ];
     const dayPlan = [
-      ["Breakfast", "2 moong dal chillas + 150 g hung curd", [["Moong dal chilla", 160], ["Greek yogurt / hung curd (low fat)", 150]]],
-      ["Lunch", "1 katori chicken curry + 2 rotis + salad", [["Chicken curry (home style)", 200], ["Roti / chapati (no ghee)", 80], ["Green salad", 100]]],
-      ["Before gym", "Banana + a handful of roasted chana", [["Banana", 110], ["Roasted chana", 30]]],
-      ["Dinner", "Soya chunk curry + dal + 1 cup rice + sabzi", [["Soya chunk curry", 150], ["Dal tadka (toor)", 150], ["Steamed white rice", 150], ["Mixed veg sabzi", 150]]],
+      ["Breakfast", "3 idlis + 1 katori sambar + 2 tbsp coconut chutney + 150 g hung curd", [["Idli", 135], ["Sambar", 150], ["Coconut chutney", 30], ["Greek yogurt / hung curd (low fat)", 150]]],
+      ["Lunch", "1 cup rice + 1 katori chicken chettinad + beans poriyal + rasam", [["Steamed white rice", 150], ["Chicken chettinad", 150], ["Beans poriyal", 100], ["Rasam", 150]]],
+      ["Before gym", "Banana + 1 cup chana sundal", [["Banana", 110], ["Chana sundal", 100]]],
+      ["Dinner", "2 pesarattu + 1 katori sambar + 100 g low-fat paneer", [["Pesarattu", 150], ["Sambar", 150], ["Paneer (low fat)", 100]]],
       ["Night", "1 glass toned milk", [["Milk (toned, 3%)", 250]]],
     ];
     const dayTot = zeroN();
@@ -691,10 +662,10 @@
         <li>Weigh food for the first two weeks. Your eye gets accurate fast.</li>
         <li>Measure cooking oil. One tablespoon is about 120 kcal; ask for 1–2 teaspoons per dish.</li>
         <li>Split protein into four servings of 25–35 g: every meal plus one snack.</li>
-        <li>Fill half the plate with sabzi or salad. Fiber target is 35 g.</li>
-        <li>Eat most of your rice and roti in the meals before and after training.</li>
-        <li>Keep chai and coffee an hour away from dal, palak and chana so you absorb the iron; lemon or amla helps.</li>
-        <li>Sweets and fried snacks are fine when planned and logged. Keep them under 10% of calories.</li>
+        <li>Fill half the plate with poriyal, kootu or salad. Fiber target is 35 g.</li>
+        <li>Eat most of your rice, dosa and roti in the meals before and after training.</li>
+        <li>Keep coffee and tea an hour away from dal, keerai and chana so you absorb the iron; lemon or amla helps.</li>
+        <li>Vada, bonda, murukku and sweets are fine when planned and logged. Keep them under 10% of calories.</li>
       </ul>
       <h3>A day that fits</h3>
       <div class="tbl-wrap"><table class="tbl"><tbody>${dayPlan.map((m) => { const x = zeroN(); m[2].forEach(([n, g]) => addN(x, portion(n, g))); return `<tr><td><b>${m[0]}</b></td><td>${esc(m[1])}</td><td class="n">${fmt(x.kcal)} kcal<br><small>${fmt(x.p)} g protein</small></td></tr>`; }).join("")}</tbody></table></div>
@@ -999,21 +970,21 @@
           <input id="f-photo" class="vh" type="file" accept="image/*" multiple data-file="foodphoto">
           <div class="grid2">
             <label class="f" for="f-grams">Total weight (optional)<div class="inp-u"><input id="f-grams" type="number" inputmode="numeric" min="0" value="${esc(sh.grams || "")}" placeholder="e.g. 350"><em>g</em></div></label>
-            <label class="f" for="f-note">What's on the plate? (optional)<input id="f-note" type="text" value="${esc(sh.note || "")}" placeholder="rajma chawal, 1 tsp ghee"></label>
+            <label class="f" for="f-note">What's on the plate? (optional)<input id="f-note" type="text" value="${esc(sh.note || "")}" placeholder="meals: rice, sambar, beans poriyal, curd"></label>
           </div>
           <button class="btn primary wide" data-act="food-estimate"${!photos.length || sh.busy ? " disabled" : ""}>${I.spark}Estimate with Claude</button>`;
       } else {
         body = `<label class="f" for="f-desc">What did you eat? Add weights or katori counts where you know them.
-            <textarea id="f-desc" rows="4" placeholder="2 rotis, 1 katori dal tadka, 150 g chicken curry, salad">${esc(sh.desc || "")}</textarea></label>
+            <textarea id="f-desc" rows="4" placeholder="3 idlis, 1 medu vada, 1 katori sambar, 2 tbsp coconut chutney">${esc(sh.desc || "")}</textarea></label>
           <button class="btn primary wide" data-act="food-estimate"${sh.busy ? " disabled" : ""}>${I.spark}Estimate with Claude</button>`;
       }
       if (sh.busy) body += `<div class="busy"><span class="spinner"></span><span>Claude is working out your plate. Every item gets saved, so next time it's an instant search.</span><button class="btn small" data-act="food-stop">Stop</button></div>`;
       if (sh.error) body += `<p class="err">${esc(sh.error)}</p>`;
     } else if (sh.mode === "search") {
-      body = `<input id="f-q" type="search" data-input="food-search" placeholder="Search roti, dal, paneer, chicken…" value="${esc(sh.query || "")}" aria-label="Search foods" autocomplete="off">
+      body = `<input id="f-q" type="search" data-input="food-search" placeholder="Search idli, dosa, vada, sambar, chicken…" value="${esc(sh.query || "")}" aria-label="Search foods" autocomplete="off">
         <div id="f-results">${foodOptions(sh)}</div>`;
     } else {
-      body = `<label class="f" for="mn-name">Name<input id="mn-name" type="text" placeholder="e.g. Office canteen thali"></label>
+      body = `<label class="f" for="mn-name">Name<input id="mn-name" type="text" placeholder="e.g. Office canteen meals"></label>
         <div class="grid3">
           <label class="f" for="mn-g">Weight<div class="inp-u"><input id="mn-g" type="number" min="0" value="100"><em>g</em></div></label>
           <label class="f" for="mn-kcal">Calories<div class="inp-u"><input id="mn-kcal" type="number" min="0"><em>kcal</em></div></label>
@@ -1036,11 +1007,13 @@
     if (!toks.length) return null;
     const mf = myFoods();
     const mine = Object.keys(mf).filter((id) => mf[id] && mf[id].per100).map((id) => ({ id: "m:" + id, name: mf[id].name, serving: mf[id].serving || { label: "100 g", g: 100 }, per100: mf[id].per100, aliases: "", mine: true }));
-    // Your saved foods first, then the curated list, then the Indian Nutrient Databank.
-    return mine.concat(window.FOODS, INDB_FOODS).map((f) => {
+    // Your saved foods first, then the built-in list.
+    return mine.concat(window.FOODS).map((f) => {
       const hay = (f.name + " " + f.aliases).toLowerCase();
       if (!toks.every((t) => hay.includes(t))) return null;
-      return { f, score: (f.name.toLowerCase().startsWith(toks[0]) ? 0 : 1) - (f.mine ? 0.5 : 0) + (f.indb ? 0.4 : 0) };
+      const name = f.name.toLowerCase();
+      // Name starts with the word, then the word is in the name, then it only matched an alias.
+      return { f, score: (name.startsWith(toks[0]) ? 0 : 1) + (toks.every((t) => name.includes(t)) ? 0 : 0.5) - (f.mine ? 0.5 : 0) };
     }).filter(Boolean).sort((a, b) => a.score - b.score || a.f.name.length - b.f.name.length).slice(0, 40).map((x) => x.f);
   }
   function recentFoods() {
@@ -1059,7 +1032,7 @@
   }
   const savedMeals = () => (S.col.config.meals && S.col.config.meals.items) || {};
   function foodRow(f) {
-    return `<li class="fopt" data-act="food-pick" data-fid="${esc(f.id)}" role="button" tabindex="0"><div class="nm">${esc(f.name)}<small>${esc(f.serving.label)}${/ g$/.test(f.serving.label) ? "" : " · " + fmt(f.serving.g) + " g"}${f.mine ? " · My food" : f.indb ? " · Databank" : ""}</small></div><div class="k">${fmt((f.per100.kcal * f.serving.g) / 100)}<small> kcal</small></div></li>`;
+    return `<li class="fopt" data-act="food-pick" data-fid="${esc(f.id)}" role="button" tabindex="0"><div class="nm">${esc(f.name)}<small>${esc(f.serving.label)}${/ g$/.test(f.serving.label) ? "" : " · " + fmt(f.serving.g) + " g"}${f.mine ? " · My food" : ""}</small></div><div class="k">${fmt((f.per100.kcal * f.serving.g) / 100)}<small> kcal</small></div></li>`;
   }
   function foodOptions(sh) {
     const res = searchFoods(sh.query || "");
@@ -1127,8 +1100,8 @@
       nPhotos > 1 ? `Estimate the nutrition of the meal in the ${nPhotos} attached photos. They show the same meal from different angles or its separate dishes, so count each item once.`
         : hasPhoto ? "Estimate the nutrition of the food in the attached photo." : "Estimate the nutrition of the food described below.",
       note ? `The person says: """${String(note).slice(0, 1500)}"""` : "",
-      grams ? `Total weight of all the food: ${grams} g. Split that weight across the items realistically.` : "No total weight was given. Estimate portions from the photo or description using typical Indian servings (1 roti about 40 g, 1 katori about 150 g, 1 cup cooked rice about 150 g).",
-      "Assume home-style cooking with normal oil or ghee unless it looks like restaurant food, and include the cooking fat in each dish's numbers. The person eats no eggs and no meat other than chicken, so read ambiguous items accordingly.",
+      grams ? `Total weight of all the food: ${grams} g. Split that weight across the items realistically.` : "No total weight was given. Estimate portions from the photo or description using typical South Indian servings: 1 idli about 45 g, 1 plain dosa about 55 g, 1 hotel masala dosa about 200 g, 1 medu vada about 45 g, 1 katori of sambar, kootu or poriyal about 100 to 150 g, 1 cup cooked rice about 150 g, a full meals plate about 900 g, 1 chapati about 40 g.",
+      "Assume South Indian home-style cooking (coconut, coconut or gingelly oil, ghee on dosa and pongal) with normal amounts of oil unless it looks like hotel food, and include the cooking fat in each dish's numbers. Deep-fried items such as vada, bonda and bajji absorb oil, so count it. The person eats no eggs and no meat other than chicken, so read ambiguous items accordingly.",
       "List each distinct item separately (for example rice, dal and sabzi as three items), with a plain name that would make sense in a food list, like \"Rajma curry\" or \"Jeera rice\".",
       "Units: p (protein), c (carbs), f (fat), fib (fiber), sug (sugar), sf (saturated fat) in grams; na (sodium), k (potassium), ca (calcium), fe (iron), mg (magnesium), zn (zinc), vc (vitamin C) in mg; b12 and vd (vitamin D) in mcg. Every value is the total for that item's grams, not per 100 g. notes is one short sentence on what you assumed.",
     ].filter(Boolean).join("\n");
@@ -1367,10 +1340,7 @@
 
       <hr class="sep">
       <h3>Food database</h3>
-      <p class="muted">Common Indian foods are built in. ${INDB_FOODS.length ? `Cooked dishes from the Indian Nutrient Databank are also stored on this phone${S.indbAt ? ", downloaded " + esc(fmtDate(iso(new Date(S.indbAt)), { day: "numeric", month: "short", year: "numeric" })) : ""}.` : "Cooked dishes from the Indian Nutrient Databank download once (about 1 MB) and then work offline."}</p>
-      ${S.indbBusy ? `<div class="busy"><span class="spinner"></span><span>Downloading dishes…</span></div>` : `<div class="row"><button class="btn small" data-act="indb">${INDB_FOODS.length ? "Download again" : "Download dishes"}</button></div>`}
-      ${S.indbError ? `<p class="err">${esc(S.indbError)}</p>` : ""}
-      <small>Indian Nutrient Databank, Jaacks Lab, University of Edinburgh. Deep-fried dishes are left out because the source counts all the frying oil, and so are egg, fish and meat dishes other than chicken.</small>
+      <p class="muted">Built in: South Indian tiffin, rice, curries, chutneys, snacks and sweets, plus common North Indian and chicken dishes. Values are per 100 g as eaten (cooked weight), worked out from standard home recipes with IFCT 2017 and USDA ingredient values. Anything Claude estimates is saved to My foods.</p>
       ${smIds.length ? `<h3>Saved meals</h3><ul class="items">${smIds.map((id) => { const m = sm[id], k = m.items.reduce((a, e) => a + (Number(e.n && e.n.kcal) || 0), 0); return `<li class="item" style="cursor:default"><div class="nm">${esc(m.name)}<small>${m.items.length} item${m.items.length === 1 ? "" : "s"} · ${fmt(k)} kcal</small></div><span></span><button class="icon-btn" data-act="delsaved" data-id="${esc(id)}" aria-label="Delete ${esc(m.name)}">${I.trash}</button></li>`; }).join("")}</ul>` : ""}
 
       <hr class="sep">
@@ -1636,7 +1606,6 @@ Write plain text with no markdown, headings or bold. Exactly five lines, each st
       sh.keyBusy = false;
       if (S.sheet === sh) renderSheet();
     },
-    indb() { downloadIndb(); },
     lockdevice(el) { if (!armed(el)) return; lsSet(ACCESS_KEY, null); location.reload(); },
     "food-meal"(el) { S.sheet.meal = el.dataset.meal; renderSheet(); },
     "food-mode"(el) { S.sheet.mode = el.dataset.mode; S.sheet.error = null; renderSheet(); if (el.dataset.mode === "search") setTimeout(() => { const q = $("#f-q"); if (q) q.focus(); }, 30); },
@@ -1958,10 +1927,7 @@ Write plain text with no markdown, headings or bold. Exactly five lines, each st
     started = true;
     render();
     lastW = ($("#view") && $("#view").clientWidth) || 0;
-    Store.init().then(() => {
-      // First launch: fetch the dish database once so search covers it offline afterwards.
-      if (!INDB_FOODS.length && Store.mode === "device" && navigator.onLine !== false) downloadIndb();
-    });
+    Store.init();
   }
   async function boot() {
     try {
