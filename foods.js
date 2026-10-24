@@ -186,6 +186,9 @@ window.FOOD_ROWS = [
   ["Yakult", "1 bottle", 65, 66, 1.3, 15.4, 0, 0, 13.6, 0, 16, 0, 0, 0, 0, 0, 0, 0, 0, "probiotic drink"],
   ["Yakult Light", "1 bottle", 65, 38, 1.2, 8, 0, 3, 4.6, 0, 16, 0, 0, 0, 0, 0, 0, 0, 0, "yakult lite probiotic drink low sugar"],
   ["Whey protein", "1 scoop", 32, 390, 78, 8, 6, 0, 5, 3.5, 200, 500, 450, 1, 80, 1.5, 0, 0, 0, "protein powder shake"],
+  ["Ghee", "1 tsp", 5, 900, 0, 0, 100, 0, 0, 62, 0, 0, 0, 0, 0, 0, 0, 0, 0, "clarified butter"],
+  ["Butter", "1 tbsp", 10, 717, 0.9, 0.1, 81, 0, 0.1, 51, 650, 24, 24, 0, 2, 0.1, 0, 0.2, 0, "amul"],
+  ["Cooking oil", "1 tbsp", 14, 884, 0, 0, 100, 0, 0, 15, 0, 0, 0, 0, 0, 0, 0, 0, 0, "refined mustard sunflower groundnut"],
 
   // Plant and yeast protein powders (per 100 g of powder, from the brands' label listings)
   ["Yogabar Plant Protein (unflavoured)", "1 scoop", 35, 406, 80, 0.6, 9.7, 0, 0.3, 2, 1000, 100, 100, 20, 50, 4, 0, 0, 0, "yoga bar yogabar plant protein pea protein vegan protein powder"],
@@ -201,9 +204,6 @@ window.FOOD_ROWS = [
   ["SuperYou Mega Protein Wafer (20 g protein)", "1 wafer", 60, 468, 33.3, 37, 22.5, 8, 6, 15, 400, 0, 0, 0, 0, 0, 0, 0, 0, "superyou super you protein bar wafer bar 20g mega"],
   ["Yogabar 20g Protein Bar", "1 bar", 70, 461, 29.1, 35.6, 22.6, 14.3, 3, 7, 359, 0, 0, 0, 0, 0, 0, 0, 0, "yoga bar yogabar protein bar 20g whey almond fudge chocolate brownie"],
   ["Yogabar Protein Wafer (10 g protein)", "1 wafer", 40, 468, 25, 51, 26, 7.5, 9, 17, 400, 0, 0, 0, 0, 0, 0, 0, 0, "yoga bar yogabar protein wafer wafer bar 10g"],
-  ["Ghee", "1 tsp", 5, 900, 0, 0, 100, 0, 0, 62, 0, 0, 0, 0, 0, 0, 0, 0, 0, "clarified butter"],
-  ["Butter", "1 tbsp", 10, 717, 0.9, 0.1, 81, 0, 0.1, 51, 650, 24, 24, 0, 2, 0.1, 0, 0.2, 0, "amul"],
-  ["Cooking oil", "1 tbsp", 14, 884, 0, 0, 100, 0, 0, 15, 0, 0, 0, 0, 0, 0, 0, 0, 0, "refined mustard sunflower groundnut"],
 
   // Chicken
   ["Chicken breast (raw)", "150 g", 150, 120, 22.5, 0, 2.6, 0, 0, 0.56, 45, 370, 5, 0.37, 28, 0.68, 0, 0.21, 0.1, "raw chicken boneless breast uncooked chicken weight"],
