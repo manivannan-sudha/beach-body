@@ -182,6 +182,8 @@ window.FOOD_ROWS = [
   ["Milk (full cream)", "1 glass", 250, 87, 3.2, 4.8, 6, 0, 4.8, 3.8, 45, 150, 120, 0.03, 11, 0.4, 0, 0.4, 0.1, ""],
   ["Buttermilk / chaas", "1 glass", 250, 25, 1.5, 2, 1, 0, 2, 0.6, 150, 70, 55, 0.05, 5, 0.2, 0.3, 0.15, 0, "chhach mattha neer mor moru majjige"],
   ["Sweet lassi", "1 glass", 250, 105, 3, 16, 3, 0, 15, 2, 45, 140, 110, 0.05, 11, 0.5, 0.3, 0.3, 0, ""],
+  ["Yakult", "1 bottle", 65, 66, 1.3, 15.4, 0, 0, 13.6, 0, 16, 0, 0, 0, 0, 0, 0, 0, 0, "probiotic drink"],
+  ["Yakult Light", "1 bottle", 65, 38, 1.2, 8, 0, 3, 4.6, 0, 16, 0, 0, 0, 0, 0, 0, 0, 0, "yakult lite probiotic drink low sugar"],
   ["Whey protein", "1 scoop", 32, 390, 78, 8, 6, 0, 5, 3.5, 200, 500, 450, 1, 80, 1.5, 0, 0, 0, "protein powder shake"],
 
   // Plant and yeast protein powders (per 100 g of powder, from the brands' label listings)
@@ -254,6 +256,7 @@ window.FOOD_ROWS = [
   ["Pear", "1 medium", 170, 57, 0.4, 15.2, 0.1, 3.1, 9.8, 0.02, 1, 116, 9, 0.18, 7, 0.1, 4.3, 0, 0, "nashpati berikai"],
   ["Kiwi", "1 kiwi", 75, 61, 1.1, 14.7, 0.5, 3, 9, 0.03, 3, 312, 34, 0.31, 17, 0.14, 92.7, 0, 0, "kiwifruit"],
   ["Amla", "1 amla", 30, 44, 0.9, 10.2, 0.6, 4.3, 4, 0.04, 1, 198, 25, 0.31, 10, 0.12, 300, 0, 0, "gooseberry nellikai nellikkai usirikaya indian gooseberry"],
+  ["Dragon fruit", "1 cup cubes", 150, 57, 0.4, 15.2, 0.1, 3.1, 9.8, 0, 0, 116, 6, 0.2, 7, 0.1, 4.3, 0, 0, "pitaya pitahaya kamalam"],
 
   // Juices (fresh, per 100 ml, no added sugar unless the name says so)
   ["Mousambi juice", "1 glass", 250, 38, 0.6, 9, 0.1, 0.2, 7.5, 0, 1, 150, 12, 0.2, 9, 0.05, 35, 0, 0, "sweet lime juice mosambi juice musambi juice sathukudi juice saathukudi juice"],
