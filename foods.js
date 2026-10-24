@@ -177,6 +177,7 @@ window.FOOD_ROWS = [
   ["Paneer tikka", "6 pieces", 150, 240, 15, 6, 17.5, 1, 3, 9, 400, 200, 330, 0.6, 25, 1.8, 8, 0.4, 0.1, ""],
   ["Curd / dahi (whole milk)", "1 katori", 150, 62, 3.5, 4.7, 3.3, 0, 4.7, 2.1, 46, 155, 121, 0.05, 12, 0.6, 0.5, 0.37, 0.1, "yogurt thayir mosaru perugu"],
   ["Greek yogurt (plain)", "100 g", 100, 73, 9.95, 3.94, 1.92, 0, 3.56, 1.23, 34, 141, 115, 0.04, 11, 0.52, 0, 0.75, 0, "hung curd skyr greek yoghurt epigamia"],
+  ["Milky Mist fruit yogurt", "1 cup", 100, 104, 3.6, 15.3, 3.1, 0, 15.3, 1.3, 21, 0, 109, 0, 0, 0, 0, 0, 0, "milkymist flavoured yogurt flavored yogurt fruit yoghurt strawberry mango blueberry"],
   ["Raita (cucumber)", "1 katori", 100, 55, 3, 4.5, 3, 0.3, 4, 2, 200, 170, 100, 0.1, 12, 0.5, 1.5, 0.3, 0, ""],
   ["Milk (toned, 3%)", "1 glass", 250, 58, 3.1, 4.7, 3, 0, 4.7, 1.9, 44, 150, 120, 0.03, 11, 0.4, 0, 0.45, 0.3, "doodh"],
   ["Milk (full cream)", "1 glass", 250, 87, 3.2, 4.8, 6, 0, 4.8, 3.8, 45, 150, 120, 0.03, 11, 0.4, 0, 0.4, 0.1, ""],
@@ -193,6 +194,13 @@ window.FOOD_ROWS = [
   ["GNC Select Yeast Protein", "1 scoop", 35, 398, 71, 14, 6.4, 0, 1, 1.5, 0, 0, 0, 0, 0, 0, 0, 0, 0, "gnc yeast protein fermented protein powder vegan"],
   ["SuperYou Pro Yeast Protein (unflavoured)", "1 scoop", 33, 406, 81.8, 6.7, 5.8, 0, 0.5, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, "superyou super you yeast protein fermented protein powder vegan"],
   ["SuperYou Pro Yeast Protein (flavoured)", "1 scoop", 36, 375, 66.7, 16.7, 4.4, 0, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, "superyou super you yeast protein fermented protein powder vegan chocolate vanilla coffee"],
+
+  // Protein bars and wafers (per 100 g, from label listings; Mega wafer and Yogabar wafer carbs and fat estimated)
+  ["SuperYou Protein Wafer Mini (5 g protein)", "1 mini", 20, 465, 25, 51, 25.9, 7.6, 8.9, 17.5, 443, 0, 0, 0, 0, 0, 0, 0, 0, "superyou super you protein bar wafer bar 5g mini"],
+  ["SuperYou Protein Wafer (10 g protein)", "1 wafer", 40, 465, 25, 51, 25.9, 7.6, 8.9, 17.5, 443, 0, 0, 0, 0, 0, 0, 0, 0, "superyou super you protein bar wafer bar 10g"],
+  ["SuperYou Mega Protein Wafer (20 g protein)", "1 wafer", 60, 468, 33.3, 37, 22.5, 8, 6, 15, 400, 0, 0, 0, 0, 0, 0, 0, 0, "superyou super you protein bar wafer bar 20g mega"],
+  ["Yogabar 20g Protein Bar", "1 bar", 70, 461, 29.1, 35.6, 22.6, 14.3, 3, 7, 359, 0, 0, 0, 0, 0, 0, 0, 0, "yoga bar yogabar protein bar 20g whey almond fudge chocolate brownie"],
+  ["Yogabar Protein Wafer (10 g protein)", "1 wafer", 40, 468, 25, 51, 26, 7.5, 9, 17, 400, 0, 0, 0, 0, 0, 0, 0, 0, "yoga bar yogabar protein wafer wafer bar 10g"],
   ["Ghee", "1 tsp", 5, 900, 0, 0, 100, 0, 0, 62, 0, 0, 0, 0, 0, 0, 0, 0, 0, "clarified butter"],
   ["Butter", "1 tbsp", 10, 717, 0.9, 0.1, 81, 0, 0.1, 51, 650, 24, 24, 0, 2, 0.1, 0, 0.2, 0, "amul"],
   ["Cooking oil", "1 tbsp", 14, 884, 0, 0, 100, 0, 0, 15, 0, 0, 0, 0, 0, 0, 0, 0, 0, "refined mustard sunflower groundnut"],
@@ -256,7 +264,7 @@ window.FOOD_ROWS = [
   ["Pear", "1 medium", 170, 57, 0.4, 15.2, 0.1, 3.1, 9.8, 0.02, 1, 116, 9, 0.18, 7, 0.1, 4.3, 0, 0, "nashpati berikai"],
   ["Kiwi", "1 kiwi", 75, 61, 1.1, 14.7, 0.5, 3, 9, 0.03, 3, 312, 34, 0.31, 17, 0.14, 92.7, 0, 0, "kiwifruit"],
   ["Amla", "1 amla", 30, 44, 0.9, 10.2, 0.6, 4.3, 4, 0.04, 1, 198, 25, 0.31, 10, 0.12, 300, 0, 0, "gooseberry nellikai nellikkai usirikaya indian gooseberry"],
-  ["Dragon fruit", "1 cup cubes", 150, 57, 0.4, 15.2, 0.1, 3.1, 9.8, 0, 0, 116, 6, 0.2, 7, 0.1, 4.3, 0, 0, "pitaya pitahaya kamalam"],
+  ["Dragon fruit", "1 cup cubes", 150, 60, 1.1, 12, 0.4, 2, 10, 0.1, 2, 192, 13, 0.3, 14, 0.09, 3, 0, 0, "pitaya pitahaya kamalam"],
 
   // Juices (fresh, per 100 ml, no added sugar unless the name says so)
   ["Mousambi juice", "1 glass", 250, 38, 0.6, 9, 0.1, 0.2, 7.5, 0, 1, 150, 12, 0.2, 9, 0.05, 35, 0, 0, "sweet lime juice mosambi juice musambi juice sathukudi juice saathukudi juice"],
@@ -275,6 +283,7 @@ window.FOOD_ROWS = [
   ["Honey", "1 tsp", 7, 304, 0.3, 82.4, 0, 0.2, 82.1, 0, 4, 52, 6, 0.42, 2, 0.22, 0.5, 0, 0, "then madhu shahad"],
   ["Gulab jamun", "1 piece", 50, 320, 4, 50, 12, 0.5, 40, 6, 80, 80, 70, 0.6, 10, 0.3, 0, 0.1, 0, "mithai sweet"],
   ["Jalebi", "2 pieces", 50, 410, 3, 60, 18, 0.5, 45, 8, 20, 30, 10, 0.8, 8, 0.2, 0, 0, 0, ""],
+  ["Ice cream", "1 scoop", 66, 207, 3.5, 23.6, 11, 0.7, 21.2, 6.8, 80, 199, 128, 0.09, 14, 0.69, 0.6, 0.39, 0.2, "icecream vanilla chocolate strawberry butterscotch frozen dessert cup cone amul kwality walls"],
   ["Kheer", "1 bowl", 150, 140, 3.8, 20, 4.5, 0.2, 14, 2.8, 50, 150, 120, 0.2, 13, 0.4, 0.5, 0.3, 0, "rice pudding payasam paal payasam"],
 ];
 
