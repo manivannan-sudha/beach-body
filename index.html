@@ -294,6 +294,12 @@ details.wo summary::-webkit-details-marker { display: none; }
 .ex { display: grid; grid-template-columns: 1fr auto; gap: 4px 10px; font-size: 14px; }
 .ex .exn { font-weight: 600; }
 .ex .sets { grid-column: 1 / -1; color: var(--ink-2); font-size: 13.5px; font-variant-numeric: tabular-nums; }
+.ex button.exn { text-align: left; font-size: 14px; }
+.ex .exn small { font-weight: 500; color: var(--muted); }
+.ex .chips { justify-content: flex-end; }
+.lift-tiles { grid-template-columns: repeat(auto-fit, minmax(104px, 1fr)); }
+@media (max-width: 560px) { .lift-tiles { grid-template-columns: 1fr 1fr; } }
+.lift-tiles .t-v { font-size: 23px; }
 
 /* Body */
 .photos { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }

@@ -85,6 +85,7 @@
     check: svg('<path d="M5 12.5l4.5 4.5L19 7.5"/>'),
     trash: svg('<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>'),
     spark: svg('<path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5L18 18M6 18l2.5-2.5M15.5 8.5L18 6"/>'),
+    trophy: svg('<path d="M8 4h8v5a4 4 0 0 1-8 0z"/><path d="M8 6H5v1a3 3 0 0 0 3 3M16 6h3v1a3 3 0 0 1-3 3M12 13v4M8.5 20h7M10 17h4"/>'),
   };
 
   // ---------- state ----------
@@ -399,7 +400,7 @@
     const tab = S.ui.tab;
     const html = tab === "train" ? viewTrain() : tab === "body" ? viewBody() : tab === "trends" ? viewTrends() : viewToday();
     $("#view").innerHTML = (mode === "memory" ? `<p class="note warn">This browser is blocking storage (private mode or blocked site data), so nothing you log will be kept. Open the app in a normal Chrome window.</p>` : "") + html;
-    bindCharts();
+    bindCharts($("#view"));
   }
 
   // ----- Today -----
@@ -462,12 +463,13 @@
   // What was trained on this day: Hevy workouts and cardio. No plan is set for now.
   function trainingCard(d) {
     const wo = workoutsOn(d), checks = day(d).checks || {};
-    const gymChip = wo.length ? `<span class="chip good">${I.check}${esc(wo.map((w) => w.title || "Workout").join(", "))}</span>`
+    const gymChip = wo.length ? `<span class="chip good">${I.check}Gym done</span>`
       : checks.gym ? `<button class="chip good" data-act="check" data-k="gym">${I.check}Gym done</button>`
       : `<button class="chip" data-act="check" data-k="gym">Mark gym done</button>`;
     return `<section class="card">
       <div class="card-h"><h2>Training</h2><span class="eyebrow">${DOW_LONG[dow(d)]}</span></div>
       ${wo.length || cardioOf(d).length ? "" : `<p class="muted">Nothing logged yet. Paste a Hevy workout or log a walk, run or ride.</p>`}
+      ${workoutList(wo)}
       ${cardioList(d)}
       <div class="spread"><div class="chips">${gymChip}</div>
         <div class="row"><button class="btn small" data-act="hevy">Paste from Hevy</button><button class="btn small" data-act="cardio">Log cardio</button></div>
@@ -479,6 +481,16 @@
     if (!(c.km > 0 && c.min > 0) || !["run", "walk"].includes(c.type)) return "";
     const p = c.min / c.km, m = Math.floor(p), s = Math.round((p - m) * 60);
     return `${m}:${pad(s === 60 ? 0 : s)} /km`;
+  }
+  // The day's workouts with their size and any PRs; tapping one opens the Workouts list.
+  function workoutList(wo) {
+    if (!wo.length) return "";
+    const st = exerciseStats();
+    return `<ul class="items">${wo.map((w) => {
+      const exs = w.exercises || [], sets = exs.reduce((s, e) => s + (e.sets || []).length, 0);
+      const pr = Object.keys(st.prs[w.id] || {}).map((k) => st.byKey.get(k).name);
+      return `<li class="item" data-act="tab" data-tab="train" data-sub="hevy" role="button" tabindex="0"><div class="nm">${esc(w.title || "Workout")}<small>${exs.length} exercise${exs.length === 1 ? "" : "s"} · ${sets} sets · ${fmt(w.volumeKg != null ? w.volumeKg : volumeOf(exs))} kg${pr.length ? " · PR: " + esc(pr.join(", ")) : ""}</small></div>${pr.length ? `<span class="chip good">${I.trophy}${pr.length} PR${pr.length === 1 ? "" : "s"}</span>` : "<span></span>"}<span></span></li>`;
+    }).join("")}</ul>`;
   }
   function cardioList(d) {
     const list = cardioOf(d);
@@ -539,10 +551,10 @@
 
   // ----- Train -----
   function viewTrain() {
-    const tabs = [["week", "Week"], ["hevy", "Workouts"], ["cardio", "Cardio"]];
+    const tabs = [["week", "Week"], ["hevy", "Workouts"], ["lifts", "Exercises"], ["cardio", "Cardio"]];
     const sub = tabs.some(([k]) => k === S.ui.trainSub) ? S.ui.trainSub : "week";
     return `<div class="seg" role="group" aria-label="Training views">${tabs.map(([k, l]) => `<button data-act="trainsub" data-sub="${k}" aria-pressed="${sub === k}">${l}</button>`).join("")}</div>
-    ${sub === "hevy" ? trainHevy() : sub === "cardio" ? trainCardio() : trainWeek()}`;
+    ${sub === "hevy" ? trainHevy() : sub === "lifts" ? trainLifts() : sub === "cardio" ? trainCardio() : trainWeek()}`;
   }
 
   // A Sunday-to-Saturday week of what was logged: Hevy workouts (or "gym done") and cardio.
@@ -588,7 +600,52 @@
     if (s.reps) return `${fmt(s.reps)} reps`;
     return esc(s.raw || "set");
   }
-  function exRow(e, w, all) {
+  // ----- Exercise history and PRs, worked out from the saved workouts (nothing extra is stored) -----
+  // Estimated 1RM uses the Epley formula, and only sets of 1–12 reps, where it holds up.
+  const e1rmOf = (kg, reps) => (kg > 0 && reps > 0 && reps <= 12 ? (reps === 1 ? kg : kg * (1 + reps / 30)) : 0);
+  const PR_KINDS = ["kg", "e1rm", "reps", "sec"]; // session volume is tracked as a best but not badged as a PR
+  function exerciseStats() {
+    const byKey = new Map(), prs = {};
+    sortedWorkouts().reverse().forEach((w) => {
+      (w.exercises || []).forEach((e) => {
+        const k = exKey(e.name);
+        if (!k) return;
+        let x = byKey.get(k);
+        if (!x) { x = { key: k, name: e.name, sessions: [], best: {} }; byKey.set(k, x); }
+        const s = { wid: w.id, date: w.date, title: w.title || "Workout", sets: e.sets || [], kg: 0, kgReps: 0, e1rm: 0, reps: 0, sec: 0, vol: 0, prs: [] };
+        s.sets.forEach((st) => {
+          const kg = Number(st.kg) || 0, reps = Number(st.reps) || 0, sec = Number(st.sec) || 0;
+          if (reps > 0 && kg > 0 && (kg > s.kg || (kg === s.kg && reps > s.kgReps))) { s.kg = kg; s.kgReps = reps; }
+          s.e1rm = Math.max(s.e1rm, e1rmOf(kg, reps));
+          if (!kg) s.reps = Math.max(s.reps, reps); // most reps only means something for bodyweight sets
+          s.sec = Math.max(s.sec, sec);
+          s.vol += kg * reps;
+        });
+        // A PR beats every earlier session of the same exercise, so the first session never counts as one.
+        ["kg", "e1rm", "reps", "sec", "vol"].forEach((kind) => {
+          const v = s[kind], b = x.best[kind];
+          if (!(v > 0)) return;
+          if (b && v <= b.v + 1e-9) {
+            // Same top weight for more reps: that set becomes the record, without a badge of its own.
+            if (kind === "kg" && v >= b.v - 1e-9 && s.kgReps > b.reps) Object.assign(b, { date: s.date, reps: s.kgReps });
+            return;
+          }
+          if (b && PR_KINDS.includes(kind)) s.prs.push(kind);
+          x.best[kind] = { v, date: s.date, reps: kind === "kg" ? s.kgReps : 0 };
+        });
+        if (s.prs.length) (prs[w.id] = prs[w.id] || {})[k] = s.prs;
+        x.sessions.push(s);
+      });
+    });
+    const last = (x) => x.sessions[x.sessions.length - 1].date;
+    const list = [...byKey.values()].sort((a, b) => (last(a) < last(b) ? 1 : last(a) > last(b) ? -1 : b.sessions.length - a.sessions.length));
+    return { list, byKey, prs };
+  }
+  function prText(s) {
+    const k = s.prs.includes("kg") ? "kg" : s.prs[0];
+    return k === "kg" ? `${fmt(s.kg, 1)} kg × ${fmt(s.kgReps)}` : k === "e1rm" ? `1RM ${fmt(s.e1rm, 1)} kg` : k === "reps" ? `${fmt(s.reps)} reps` : `${fmt(s.sec)} s`;
+  }
+  function exRow(e, w, all, st) {
     const prev = all.find((x) => x.date < w.date && (x.exercises || []).some((pe) => exKey(pe.name) === exKey(e.name)));
     let chip = "";
     if (prev) {
@@ -596,20 +653,48 @@
       const diff = topKg(e) - topKg(pe);
       if (topKg(e) > 0) chip = diff > 0 ? `<span class="chip good">+${fmt(diff, 1)} kg</span>` : diff < 0 ? `<span class="chip warn">−${fmt(-diff, 1)} kg</span>` : `<span class="chip">same weight</span>`;
     } else if (topKg(e) > 0) chip = `<span class="chip">first time</span>`;
-    return `<div class="ex"><span class="exn">${esc(e.name)}</span>${chip}<span class="sets">${(e.sets || []).map(setText).join(", ")}</span></div>`;
+    const x = st.byKey.get(exKey(e.name)), s = x && x.sessions.find((ss) => ss.wid === w.id);
+    const pr = s && s.prs.length ? `<span class="chip good">${I.trophy}PR ${esc(prText(s))}</span>` : "";
+    return `<div class="ex"><button class="exn link" data-act="lift" data-k="${esc(exKey(e.name))}">${esc(e.name)}</button><span class="chips">${pr}${chip}</span><span class="sets">${(e.sets || []).map(setText).join(", ")}</span></div>`;
   }
   function trainHevy() {
-    const list = sortedWorkouts();
+    const list = sortedWorkouts(), st = exerciseStats();
     return `<section class="card"><div class="card-h"><h2>Workouts from Hevy</h2><button class="btn small" data-act="hevy">Paste from Hevy</button></div>
-      <p class="muted">After a workout, open its Hevy link in Chrome, select all the text, copy it, then tap Paste from Hevy. The phone reads it itself, with no AI, and each lift shows how it compares with last time.</p>
+      <p class="muted">After a workout, open its Hevy link in Chrome, select all the text, copy it, then tap Paste from Hevy. The phone reads it itself, with no AI. Each lift shows how it compares with last time and gets a badge when it's a PR. Tap a lift's name for its full history.</p>
       ${list.length ? list.slice(0, 60).map((w) => {
         const sets = (w.exercises || []).reduce((s, e) => s + (e.sets || []).length, 0);
         const vol = w.volumeKg != null ? w.volumeKg : volumeOf(w.exercises);
-        return `<details class="wo"><summary><div><div class="wo-t">${esc(w.title || "Workout")}</div><div class="wo-m">${esc(fmtDate(w.date))}${w.durationMin ? " · " + fmt(w.durationMin) + " min" : ""} · ${sets} sets · ${fmt(vol)} kg moved</div></div>${I.right}</summary>
-          <div class="wo-body">${(w.exercises || []).map((e) => exRow(e, w, list)).join("")}
+        const nPr = Object.keys(st.prs[w.id] || {}).length;
+        return `<details class="wo"><summary><div><div class="wo-t">${esc(w.title || "Workout")}</div><div class="wo-m">${esc(fmtDate(w.date))}${w.durationMin ? " · " + fmt(w.durationMin) + " min" : ""} · ${sets} sets · ${fmt(vol)} kg moved${nPr ? ` · ${nPr} PR${nPr === 1 ? "" : "s"}` : ""}</div></div>${I.right}</summary>
+          <div class="wo-body">${(w.exercises || []).map((e) => exRow(e, w, list, st)).join("")}
             <div class="spread">${w.url ? `<a class="link" href="${esc(safeUrl(w.url))}" target="_blank" rel="noopener">Open in Hevy</a>` : "<span></span>"}<button class="btn small danger" data-act="delwo" data-id="${esc(w.id)}">Delete</button></div>
           </div></details>`;
       }).join("") : `<p class="empty">No workouts yet. Your first Hevy session shows up here with sets, weights and how they compare with last time.</p>`}
+    </section>`;
+  }
+
+  // Every lift ever logged, newest first, with recent PRs on top. Tapping one opens its history sheet.
+  function bestText(x) {
+    const b = x.best;
+    return b.kg ? `${fmt(b.kg.v, 1)}<small>kg best</small>` : b.reps ? `${fmt(b.reps.v)}<small>reps best</small>` : b.sec ? `${fmt(b.sec.v)}<small>sec best</small>` : "–";
+  }
+  function trainLifts() {
+    const st = exerciseStats();
+    if (!st.list.length) return `<section class="card"><div class="card-h"><h2>Exercises</h2><button class="btn small" data-act="hevy">Paste from Hevy</button></div><p class="empty">No lifts yet. Paste a Hevy workout and each exercise gets its own history and PRs here.</p></section>`;
+    const since = addDays(today(), -30), recent = [];
+    st.list.forEach((x) => x.sessions.forEach((s) => { if (s.prs.length && s.date >= since) recent.push({ x, s }); }));
+    recent.sort((a, b) => (a.s.date < b.s.date ? 1 : a.s.date > b.s.date ? -1 : 0));
+    const short = { day: "numeric", month: "short" };
+    return `<section class="card"><div class="card-h"><h2>Recent PRs</h2><small>last 30 days</small></div>
+      ${recent.length ? `<ul class="items">${recent.slice(0, 15).map(({ x, s }) => `<li class="item" data-act="lift" data-k="${esc(x.key)}" role="button" tabindex="0"><div class="nm">${esc(x.name)}<small>${esc(fmtDate(s.date, short))}</small></div><span class="chip good">${I.trophy}${esc(prText(s))}</span><span></span></li>`).join("")}</ul>`
+        : `<p class="muted">No PRs in the last 30 days yet. A lift shows up here the day you beat your best.</p>`}
+    </section>
+    <section class="card"><div class="card-h"><h2>Exercises</h2><small>${st.list.length} logged</small></div>
+      <ul class="items">${st.list.map((x) => {
+        const n = x.sessions.length, last = x.sessions[n - 1];
+        return `<li class="item" data-act="lift" data-k="${esc(x.key)}" role="button" tabindex="0"><div class="nm">${esc(x.name)}<small>${n} session${n === 1 ? "" : "s"} · last ${esc(fmtDate(last.date, short))}</small></div><div class="v">${bestText(x)}</div><span></span></li>`;
+      }).join("")}</ul>
+      <small>PRs count from your second session of a lift. Est. 1RM uses the Epley formula on sets of 12 reps or fewer.</small>
     </section>`;
   }
 
@@ -843,7 +928,7 @@
   const barPath = (x, y, w, h, r) => `M${x},${y + h}L${x},${y + r}Q${x},${y} ${x + r},${y}L${x + w - r},${y}Q${x + w},${y} ${x + w},${y + r}L${x + w},${y + h}Z`;
 
   function chart(id, o) {
-    const W = chartW();
+    const W = o.width || chartW();
     const H = Math.round(Math.min(230, Math.max(170, W * 0.4)));
     const L = 42, R = o.endLabel ? 44 : 12, T = 18, B = 24;
     const n = o.dates.length, pw = W - L - R, ph = H - T - B;
@@ -903,8 +988,8 @@
     return `${legend}<div class="chart" data-chart="${id}"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(o.label)}">${g}<line class="xh" x1="0" x2="0" y1="${T}" y2="${T + ph}" visibility="hidden"/><rect class="hit" x="${L}" y="${T}" width="${pw}" height="${ph}"/></svg><div class="tip" hidden></div></div>`;
   }
 
-  function bindCharts() {
-    $$(".chart").forEach((el) => {
+  function bindCharts(root) {
+    $$(".chart", root).forEach((el) => {
       const c = CH[el.dataset.chart];
       if (!c) return;
       const svgEl = el.querySelector("svg"), tip = el.querySelector(".tip"), xh = el.querySelector(".xh"), hit = el.querySelector(".hit");
@@ -955,8 +1040,37 @@
     if (sh.type === "food") grabFoodInputs(sh);
     const html = sh.type === "food" ? sheetFood(sh) : sh.type === "entry" ? sheetEntry(sh) : sh.type === "cardio" ? sheetCardio(sh)
       : sh.type === "guide" ? sheetGuide() : sh.type === "hevy" ? sheetHevy(sh) : sh.type === "settings" ? sheetSettings(sh)
-      : sh.type === "savemeal" ? sheetSaveMeal(sh) : "";
+      : sh.type === "savemeal" ? sheetSaveMeal(sh) : sh.type === "lift" ? sheetLift(sh) : "";
     $("#sheet-panel").innerHTML = html;
+    if (sh.type === "lift") bindCharts($("#sheet-panel"));
+  }
+
+  // ----- exercise history sheet -----
+  function sheetLift(sh) {
+    const x = exerciseStats().byKey.get(sh.key);
+    if (!x) return `${head("Exercise")}<p class="empty">No sessions saved for this exercise.</p>`;
+    const b = x.best, short = { day: "numeric", month: "short" };
+    const tiles = [
+      b.kg && ["Heaviest", `${fmt(b.kg.v, 1)}<small> kg × ${fmt(b.kg.reps)}</small>`, b.kg.date],
+      b.e1rm && ["Best 1RM (est.)", `${fmt(b.e1rm.v, 1)}<small> kg</small>`, b.e1rm.date],
+      b.reps && ["Most reps", `${fmt(b.reps.v)}`, b.reps.date],
+      b.sec && ["Longest hold", `${fmt(b.sec.v)}<small> s</small>`, b.sec.date],
+      b.vol && ["Best session", `${fmt(b.vol.v)}<small> kg</small>`, b.vol.date],
+    ].filter(Boolean);
+    // One point per day: the best of that day's sessions.
+    const dates = [...new Set(x.sessions.map((s) => s.date))];
+    const byDay = (k) => new Map(dates.map((d) => [d, Math.max(...x.sessions.filter((s) => s.date === d).map((s) => s[k]))]).filter(([, v]) => v > 0));
+    const series = b.kg ? [{ name: "Top weight", kind: "line", color: "var(--accent)", vals: byDay("kg") }].concat(b.e1rm ? [{ name: "Est. 1RM", kind: "line", color: "var(--c-f)", vals: byDay("e1rm") }] : [])
+      : b.reps ? [{ name: "Most reps", kind: "line", color: "var(--accent)", vals: byDay("reps") }]
+      : b.sec ? [{ name: "Longest hold", kind: "line", color: "var(--accent)", vals: byDay("sec") }] : [];
+    const width = Math.max(260, Math.min(728, ($("#sheet-panel").clientWidth || 360) - 34));
+    const n = x.sessions.length;
+    return `${head(x.name)}
+      <p class="muted">${n} session${n === 1 ? "" : "s"} since ${esc(fmtDate(x.sessions[0].date))}</p>
+      ${tiles.length ? `<div class="tiles lift-tiles">${tiles.map(([l, v, d]) => `<div class="tile"><span class="t-l">${l}</span><span class="t-v">${v}</span><span class="t-d">${esc(fmtDate(d, short))}</span></div>`).join("")}</div>` : ""}
+      ${series.length ? chart("lift", { dates, series, unit: b.kg ? "kg" : b.reps ? "reps" : "s", dec: 1, label: `${x.name} over time`, width }) : ""}
+      <h3>History</h3>
+      <div class="stack">${x.sessions.slice().reverse().map((s) => `<div class="ex"><span class="exn">${esc(fmtDate(s.date, { weekday: "short", day: "numeric", month: "short" }))}<small> · ${esc(s.title)}</small></span><span class="chips">${s.prs.length ? `<span class="chip good">${I.trophy}PR ${esc(prText(s))}</span>` : ""}</span><span class="sets">${s.sets.map(setText).join(", ")}${s.e1rm ? ` · 1RM ≈ ${fmt(s.e1rm, 1)} kg` : ""}</span></div>`).join("")}</div>`;
   }
 
   // ----- food sheet -----
@@ -1551,13 +1665,13 @@
 
   // ---------- review ----------
   function reviewPrompt() {
-    const t = targets(), p = prof(), end = today();
+    const t = targets(), p = prof(), end = today(), st = exerciseStats();
     const rows = [];
     for (let i = 6; i >= 0; i--) {
       const d = addDays(end, -i), tot = totalsOf(d), dd = day(d);
       rows.push({
         date: d, weekday: DOW_SHORT[dow(d)], gymDone: gymDone(d),
-        gymLogged: workoutsOn(d).map((w) => w.title), cardio: cardioOf(d).map((c) => `${c.type} ${c.min || "?"} min${c.km ? " " + c.km + " km" : ""}`),
+        gymLogged: workoutsOn(d).map((w) => w.title), liftPRs: workoutsOn(d).flatMap((w) => Object.keys(st.prs[w.id] || {}).map((k) => st.byKey.get(k).name)), cardio: cardioOf(d).map((c) => `${c.type} ${c.min || "?"} min${c.km ? " " + c.km + " km" : ""}`),
         foodLogged: foodsOf(d).length > 0, kcal: r0(tot.kcal), protein: r0(tot.p), carbs: r0(tot.c), fat: r0(tot.f), fiber: r0(tot.fib), sodiumMg: r0(tot.na),
         weightKg: dd.weight == null ? null : dd.weight, steps: dd.steps == null ? null : dd.steps, sleepH: dd.sleep == null ? null : dd.sleep,
       });
@@ -1781,10 +1895,12 @@ Write plain text with no markdown, headings or bold. Exactly five lines, each st
       const id = hid ? "hevy-" + hid : `w-${date}-${doc.volumeKg}`;
       const existed = !!S.col.workouts[id];
       Store.put("workouts", id, doc);
+      const nPr = Object.keys(exerciseStats().prs[id] || {}).length;
       closeSheet();
-      toast(existed ? "Workout updated" : "Workout saved");
+      toast(`${existed ? "Workout updated" : "Workout saved"}${nPr ? ` · ${nPr} new PR${nPr === 1 ? "" : "s"}` : ""}`);
     },
     delwo(el) { if (!armed(el)) return; Store.del("workouts", el.dataset.id); },
+    lift(el) { openSheet({ type: "lift", key: el.dataset.k }); },
     savemeasure() {
       const d = val("m-date") || S.ui.bodyDate || today();
       const patch = { date: d };
