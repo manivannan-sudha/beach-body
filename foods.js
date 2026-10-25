@@ -244,6 +244,16 @@ window.FOOD_ROWS = [
   ["Sesame seeds", "1 tbsp", 9, 573, 17.7, 23.4, 49.7, 11.8, 0.3, 7, 11, 468, 975, 14.6, 351, 7.8, 0, 0, 0, "til ellu gingelly"],
   ["Raisins", "1 tbsp", 10, 299, 3.1, 79.2, 0.5, 3.7, 59.2, 0.06, 11, 749, 50, 1.9, 32, 0.22, 2.3, 0, 0, "kishmish ularntha thiratchai dry grapes"],
 
+  // Pizza Hut India (per 100 g, from Pizza Hut India's 2022 nutrition booklet; a medium pan pizza is 6 slices)
+  ["Pizza Hut Corn n Cheese (pan)", "1 slice (medium)", 87.5, 319.5, 13.22, 48.48, 8.08, 2.84, 0, 3.79, 369, 0, 0, 0, 0, 0, 0, 0, 0, "pizza hut pizzahut corn pizza sweet corn cheese pizza classic corn"],
+  ["Pizza Hut Margherita (pan)", "1 slice (medium)", 78.5, 292.4, 12.89, 40.98, 8.56, 3.29, 0, 3.12, 577, 0, 0, 0, 0, 0, 0, 0, 0, "pizza hut pizzahut margherita cheese pizza"],
+  ["Pizza Hut Veggie Supreme (pan)", "1 slice (medium)", 108.5, 253.9, 10.57, 32.98, 8.59, 2.64, 0, 3.29, 352, 0, 0, 0, 0, 0, 0, 0, 0, "pizza hut pizzahut veg supreme pizza"],
+  ["Pizza Hut Tandoori Paneer (pan)", "1 slice (medium)", 102, 334.8, 11.21, 48.06, 10.87, 4.44, 0, 4.2, 605, 0, 0, 0, 0, 0, 0, 0, 0, "pizza hut pizzahut paneer pizza"],
+  ["Pizza Hut Chicken Tikka (pan)", "1 slice (medium)", 107, 275.2, 12.24, 33.77, 10.12, 4.77, 0, 4.31, 457, 0, 0, 0, 0, 0, 0, 0, 0, "pizza hut pizzahut chicken pizza"],
+  ["Pizza Hut Garlic Bread Stix", "1 order", 180, 287.2, 8.67, 61.78, 1.22, 2.44, 3.5, 0.22, 527, 0, 0, 0, 0, 0, 0, 0, 0, "pizza hut pizzahut garlic bread sticks breadsticks breadstix"],
+  ["Pizza Hut Cheese Garlic Bread", "1 order", 136, 362.9, 7.65, 40.29, 23.31, 3.01, 1.25, 19.63, 1273, 0, 0, 0, 0, 0, 0, 0, 0, "pizza hut pizzahut cheesy garlic bread with cheese"],
+  ["Pizza Hut Choco Volcano", "1 cake", 82, 319.1, 6.95, 55.73, 15.61, 3.17, 36.46, 12.07, 152, 0, 0, 0, 0, 0, 0, 0, 0, "pizza hut pizzahut choco lava cake chocolate volcano dessert"],
+
   // Fruit
   ["Banana", "1 medium", 110, 89, 1.1, 23, 0.3, 2.6, 12, 0.1, 1, 358, 5, 0.3, 27, 0.15, 8.7, 0, 0, "kela vazhaipazham pazham"],
   ["Apple", "1 medium", 180, 52, 0.3, 14, 0.2, 2.4, 10, 0, 1, 107, 6, 0.1, 5, 0, 4.6, 0, 0, "seb"],
