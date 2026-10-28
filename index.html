@@ -43,6 +43,7 @@
   --c-c: #1baf7a;
   --c-f: #eda100;
   --c-fib: #6250d6;
+  --c-skin: #d0508f;
   --dot: #8aa1a8;
   --shadow: 0 1px 2px rgba(11, 30, 37, .06), 0 6px 20px rgba(11, 30, 37, .06);
   --f-display: "Barlow Condensed", "Arial Narrow", system-ui, sans-serif;
@@ -57,7 +58,7 @@
     --accent: #3da0e3; --accent-soft: #10304a; --on-accent: #03121a;
     --rope: #ee5f55; --rope-2: #dfe8ea;
     --good: #3cc172; --good-soft: #0f3020; --warn: #e2a634; --warn-soft: #33270b; --bad: #ef6a6a; --bad-soft: #3a1717;
-    --c-p: #3987e5; --c-c: #199e70; --c-f: #c98500; --c-fib: #9085e9; --dot: #5d7a83;
+    --c-p: #3987e5; --c-c: #199e70; --c-f: #c98500; --c-fib: #9085e9; --c-skin: #e27bb0; --dot: #5d7a83;
     --shadow: 0 1px 2px rgba(0, 0, 0, .35);
     color-scheme: dark;
   }
@@ -68,7 +69,7 @@
   --accent: #3da0e3; --accent-soft: #10304a; --on-accent: #03121a;
   --rope: #ee5f55; --rope-2: #dfe8ea;
   --good: #3cc172; --good-soft: #0f3020; --warn: #e2a634; --warn-soft: #33270b; --bad: #ef6a6a; --bad-soft: #3a1717;
-  --c-p: #3987e5; --c-c: #199e70; --c-f: #c98500; --c-fib: #9085e9; --dot: #5d7a83;
+  --c-p: #3987e5; --c-c: #199e70; --c-f: #c98500; --c-fib: #9085e9; --c-skin: #e27bb0; --dot: #5d7a83;
   --shadow: 0 1px 2px rgba(0, 0, 0, .35);
   color-scheme: dark;
 }
@@ -272,10 +273,15 @@ table.tbl { border-collapse: collapse; width: 100%; font-size: 14px; }
 .wd.today { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
 .wd .d1 { font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
 .wd .d2 { font-family: var(--f-display); font-size: 20px; font-weight: 600; }
-.wd .d3 { font-size: 11px; font-weight: 600; color: var(--ink-2); text-align: center; line-height: 1.15; }
-.wd .marks { display: flex; gap: 3px; height: 8px; }
-.wd .marks i { width: 8px; height: 8px; border-radius: 50%; border: 1.5px solid var(--line-2); }
-.wd .marks i.done { background: var(--good); border-color: var(--good); }
+/* Habit marks: one dot per habit, filled in its color when done (3 + 2 in a day cell, a row elsewhere). */
+.marks { display: flex; gap: 3px; }
+.marks i { width: 8px; height: 8px; border-radius: 50%; border: 1.5px solid var(--line-2); flex: none; }
+.marks i.on { border-color: transparent; }
+.wd .marks { flex-wrap: wrap; justify-content: center; width: 30px; margin-top: 2px; }
+.habits { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 13px; font-weight: 600; color: var(--ink-2); }
+.habits span { display: inline-flex; align-items: center; gap: 6px; }
+.habits i { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+.habits b { color: var(--ink); font-variant-numeric: tabular-nums; }
 .dayrow { display: grid; grid-template-columns: 74px 1fr auto; gap: 12px; align-items: center; padding: 10px 4px; border-bottom: 1px solid var(--line); cursor: pointer; }
 .dayrow:last-child { border-bottom: 0; }
 .dayrow .dn { font-family: var(--f-display); font-size: 17px; font-weight: 600; }

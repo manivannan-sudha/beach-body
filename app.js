@@ -330,6 +330,26 @@
   }
   const gymDone = (d) => workoutsOn(d).length > 0 || !!(day(d).checks && day(d).checks.gym);
 
+  // Daily habits, shown as colored marks on the week calendar.
+  const HABITS = [
+    { k: "gym", label: "Gym", color: "var(--accent)" },
+    { k: "cardio", label: "Cardio", color: "var(--c-c)" },
+    { k: "steps", label: "Steps", color: "var(--c-fib)" },
+    { k: "food", label: "Food", color: "var(--c-f)" },
+    { k: "skin", label: "Skincare", color: "var(--c-skin)" },
+  ];
+  // Food counts when calories land within 90–110% of the target and protein reaches 90% of it.
+  function foodOnTarget(d) {
+    if (!foodsOf(d).length) return false;
+    const t = targets(), x = totalsOf(d);
+    return x.kcal >= t.kcal * 0.9 && x.kcal <= t.kcal * 1.1 && x.p >= t.p * 0.9;
+  }
+  function habitsOn(d) {
+    const dd = day(d);
+    return { gym: gymDone(d), cardio: cardioOf(d).length > 0, steps: dd.steps >= stepGoal(), food: foodOnTarget(d), skin: !!(dd.checks && dd.checks.skin) };
+  }
+  const habitMarks = (h) => `<span class="marks" aria-hidden="true">${HABITS.map((x) => `<i${h[x.k] ? ` class="on" style="background:${x.color}"` : ""}></i>`).join("")}</span>`;
+
   function weights() {
     return Object.values(S.col.days).filter((d) => d && d.date && num(d.weight)).map((d) => ({ date: d.date, v: num(d.weight) })).sort((a, b) => (a.date < b.date ? -1 : 1));
   }
@@ -466,12 +486,14 @@
     const gymChip = wo.length ? `<span class="chip good">${I.check}Gym done</span>`
       : checks.gym ? `<button class="chip good" data-act="check" data-k="gym">${I.check}Gym done</button>`
       : `<button class="chip" data-act="check" data-k="gym">Mark gym done</button>`;
+    const skinChip = checks.skin ? `<button class="chip good" data-act="check" data-k="skin">${I.check}Skincare done</button>`
+      : `<button class="chip" data-act="check" data-k="skin">Mark skincare done</button>`;
     return `<section class="card">
       <div class="card-h"><h2>Training</h2><span class="eyebrow">${DOW_LONG[dow(d)]}</span></div>
       ${wo.length || cardioOf(d).length ? "" : `<p class="muted">Nothing logged yet. Paste a Hevy workout or log a walk, run or ride.</p>`}
       ${workoutList(wo)}
       ${cardioList(d)}
-      <div class="spread"><div class="chips">${gymChip}</div>
+      <div class="spread"><div class="chips">${gymChip}${skinChip}</div>
         <div class="row"><button class="btn small" data-act="hevy">Paste from Hevy</button><button class="btn small" data-act="cardio">Log cardio</button></div>
       </div>
     </section>`;
@@ -562,28 +584,25 @@
     const sun = addDays(weekStartOf(today()), S.ui.trainWeek * 7);
     const days = Array.from({ length: 7 }, (_, i) => addDays(sun, i));
     const label = S.ui.trainWeek === 0 ? "This week" : S.ui.trainWeek === -1 ? "Last week" : S.ui.trainWeek === 1 ? "Next week" : "Week of " + fmtDate(sun, { day: "numeric", month: "short" });
-    let gymD = 0, cardioD = 0, cardioMin = 0;
-    const cells = days.map((d) => {
-      const gd = gymDone(d), cd = cardioOf(d);
-      if (gd) gymD++;
-      if (cd.length) cardioD++;
-      cd.forEach((c) => { cardioMin += Number(c.min) || 0; });
-      const tag = [gd ? "Gym" : "", cd.length ? cardioLabel(cd[0].type).split(" ")[0] : ""].filter(Boolean).join(" + ") || (d > today() ? "" : "Rest");
-      return { d, gd, cd, tag };
-    });
+    const cells = days.map((d) => ({ d, h: habitsOn(d), cd: cardioOf(d) }));
+    const past = cells.filter((c) => c.d <= today());
+    const count = (k) => past.filter((c) => c.h[k]).length;
+    const cardioMin = cells.reduce((a, c) => a + c.cd.reduce((s, x) => s + (Number(x.min) || 0), 0), 0);
     const steps = days.map((d) => day(d).steps).filter((v) => v > 0);
+    const doneText = (c) => HABITS.filter((x) => c.h[x.k]).map((x) => x.label).join(", ") || (c.d > today() ? "upcoming" : "nothing done");
     return `<section class="card">
       <div class="spread"><div class="row"><button class="icon-btn" data-act="trainweek" data-n="-1" aria-label="Previous week">${I.left}</button><h2>${esc(label)}</h2><button class="icon-btn" data-act="trainweek" data-n="1" aria-label="Next week">${I.right}</button></div>
       ${S.ui.trainWeek ? `<button class="link" data-act="trainweek" data-n="0">This week</button>` : ""}</div>
       <small>${esc(fmtDate(sun, { weekday: "short", day: "numeric", month: "short" }))} – ${esc(fmtDate(days[6], { weekday: "short", day: "numeric", month: "short" }))}</small>
-      <div class="week">${cells.map((c) => `<button class="wd${c.d === today() ? " today" : ""}" data-act="gotoday" data-date="${c.d}" aria-label="${esc(fmtDate(c.d, { weekday: "long", day: "numeric", month: "short" }))}${c.tag ? ": " + esc(c.tag) : ""}"><span class="d1">${DOW_SHORT[dow(c.d)]}</span><span class="d2">${parseISO(c.d).getDate()}</span><span class="d3">${esc(c.tag)}</span><span class="marks">${c.gd ? `<i class="done"></i>` : ""}${c.cd.length ? `<i class="done"></i>` : ""}</span></button>`).join("")}</div>
-      <div class="chips"><span class="chip${gymD ? " good" : ""}">Gym ${gymD} day${gymD === 1 ? "" : "s"}</span><span class="chip${cardioD ? " good" : ""}">Cardio ${fmt(cardioMin)} min</span><span class="chip">Avg steps ${steps.length ? fmt(steps.reduce((a, b) => a + b, 0) / steps.length) : "–"}</span></div>
+      <div class="week">${cells.map((c) => `<button class="wd${c.d === today() ? " today" : ""}" data-act="gotoday" data-date="${c.d}" aria-label="${esc(fmtDate(c.d, { weekday: "long", day: "numeric", month: "short" }))}: ${esc(doneText(c))}"><span class="d1">${DOW_SHORT[dow(c.d)]}</span><span class="d2">${parseISO(c.d).getDate()}</span>${habitMarks(c.h)}</button>`).join("")}</div>
+      <div class="habits">${HABITS.map((x) => `<span><i style="background:${x.color}"></i>${x.label} <b>${count(x.k)}/${past.length || 7}</b></span>`).join("")}</div>
+      <small>Steps: ${fmt(stepGoal())}+ a day. Food: calories within 90–110% of your target and protein at 90%+. This week: ${fmt(cardioMin)} min cardio, ${steps.length ? fmt(steps.reduce((a, b) => a + b, 0) / steps.length) : "–"} steps a day on average.</small>
     </section>
     <section class="card">${cells.map((c) => {
       const wo = workoutsOn(c.d);
       const done = [wo.map((w) => esc(w.title || "Workout")).join(", "), c.cd.map((x) => esc(cardioLabel(x.type)) + (x.min ? " " + fmt(x.min) + " min" : "")).join(", ")].filter(Boolean).join(" · ");
-      const gymOnly = !wo.length && c.gd ? "Gym" : "";
-      return `<div class="dayrow" data-act="gotoday" data-date="${c.d}" role="button" tabindex="0"><div class="dn">${DOW_SHORT[dow(c.d)]}<small>${esc(fmtDate(c.d, { day: "numeric", month: "short" }))}</small></div><div class="ds">${done || gymOnly ? `<b>${[gymOnly, done].filter(Boolean).join(" · ")}</b>` : `<span class="muted">${c.d > today() ? "–" : "Nothing logged"}</span>`}</div>${c.gd || c.cd.length ? `<span class="chip good">${I.check}</span>` : ""}</div>`;
+      const gymOnly = !wo.length && c.h.gym ? "Gym" : "";
+      return `<div class="dayrow" data-act="gotoday" data-date="${c.d}" role="button" tabindex="0"><div class="dn">${DOW_SHORT[dow(c.d)]}<small>${esc(fmtDate(c.d, { day: "numeric", month: "short" }))}</small></div><div class="ds">${done || gymOnly ? `<b>${[gymOnly, done].filter(Boolean).join(" · ")}</b>` : `<span class="muted">${c.d > today() ? "–" : "No training"}</span>`}</div>${c.d > today() ? "<span></span>" : habitMarks(c.h)}</div>`;
     }).join("")}</section>`;
   }
 
@@ -1673,7 +1692,7 @@
         date: d, weekday: DOW_SHORT[dow(d)], gymDone: gymDone(d),
         gymLogged: workoutsOn(d).map((w) => w.title), liftPRs: workoutsOn(d).flatMap((w) => Object.keys(st.prs[w.id] || {}).map((k) => st.byKey.get(k).name)), cardio: cardioOf(d).map((c) => `${c.type} ${c.min || "?"} min${c.km ? " " + c.km + " km" : ""}`),
         foodLogged: foodsOf(d).length > 0, kcal: r0(tot.kcal), protein: r0(tot.p), carbs: r0(tot.c), fat: r0(tot.f), fiber: r0(tot.fib), sodiumMg: r0(tot.na),
-        weightKg: dd.weight == null ? null : dd.weight, steps: dd.steps == null ? null : dd.steps, sleepH: dd.sleep == null ? null : dd.sleep,
+        weightKg: dd.weight == null ? null : dd.weight, steps: dd.steps == null ? null : dd.steps, sleepH: dd.sleep == null ? null : dd.sleep, skincareDone: !!(dd.checks && dd.checks.skin),
       });
     }
     return `You are a direct, encouraging strength and nutrition coach. Write a weekly check-in addressed to the person as "you".
