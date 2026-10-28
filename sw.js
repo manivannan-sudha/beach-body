@@ -1,6 +1,6 @@
 // Offline support. App files: network first (fresh when online, cached copy when not).
 // Fonts and libraries from CDNs: cache first. Anthropic API calls and the dish-database download pass straight through.
-const CACHE = "beachbody-v11";
+const CACHE = "beachbody-v12";
 const SHELL = ["./", "index.html", "app.js", "foods.js", "manifest.webmanifest",
   "icons/icon-192.png", "icons/icon-512.png", "icons/maskable-512.png", "icons/apple-touch-icon.png"];
 const CDN_HOSTS = ["fonts.googleapis.com", "fonts.gstatic.com", "cdn.jsdelivr.net", "cdnjs.cloudflare.com"];

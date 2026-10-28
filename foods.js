@@ -145,6 +145,7 @@ window.FOOD_ROWS = [
   ["Chicken biryani", "1 plate", 300, 180, 9, 20, 7, 1, 1, 2.2, 400, 180, 20, 0.9, 20, 1, 2, 0.2, 0.1, "dindigul ambur seeraga samba"],
   ["Khichdi (moong dal)", "1 bowl", 250, 120, 4.5, 18, 3.5, 2, 0.5, 1.5, 250, 150, 18, 0.9, 25, 0.6, 1, 0, 0, "khichri"],
   ["Oats (raw)", "40 g", 40, 379, 13.2, 67.7, 6.5, 10.1, 1, 1.1, 6, 362, 52, 4.25, 138, 3.6, 0, 0, 0, "dry rolled oats oatmeal quaker saffola"],
+  ["Kellogg's Corn Flakes", "1 bowl (dry, no milk)", 30, 380, 6.67, 87, 1, 2.67, 8.33, 0.67, 500, 0, 0, 0, 0, 0, 0, 0, 0, "kelloggs kellogs cornflakes corn flakes breakfast cereal original"],
   ["Whole wheat bread", "1 slice", 28, 250, 10, 43, 3.5, 6, 5, 0.7, 450, 250, 150, 2.5, 75, 1.8, 0, 0, 0, "brown bread toast"],
   ["Bun / pav (small)", "1 bun", 35, 290, 8.5, 54, 4.5, 2, 8, 1.5, 450, 110, 60, 2.5, 25, 0.7, 0, 0, 0, "bread roll burger bun bakery bun small bun"],
   ["Maggi noodles (dry pack)", "1 pack", 70, 440, 8.5, 62, 17, 2, 2, 8, 1600, 150, 20, 2, 20, 0.6, 0, 0, 0, "instant noodles"],
