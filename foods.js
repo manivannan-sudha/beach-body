@@ -148,6 +148,9 @@ window.FOOD_ROWS = [
   ["Kellogg's Corn Flakes", "1 bowl (dry, no milk)", 30, 380, 6.67, 87, 1, 2.67, 8.33, 0.67, 500, 0, 0, 0, 0, 0, 0, 0, 0, "kelloggs kellogs cornflakes corn flakes breakfast cereal original"],
   ["Whole wheat bread", "1 slice", 28, 250, 10, 43, 3.5, 6, 5, 0.7, 450, 250, 150, 2.5, 75, 1.8, 0, 0, 0, "brown bread toast"],
   ["Bun / pav (small)", "1 bun", 35, 290, 8.5, 54, 4.5, 2, 8, 1.5, 450, 110, 60, 2.5, 25, 0.7, 0, 0, 0, "bread roll burger bun bakery bun small bun"],
+  // iD Fresh ready parotas, from the pack label (a 350 g pack has 5, so about 70 g each), as packed, before any oil on the pan
+  ["iD Malabar Parota", "1 parota", 70, 335, 9.6, 42.5, 14, 0, 0, 0, 250, 0, 0, 0, 0, 0, 0, 0, 0, "id fresh idfresh malabar parotta paratha kerala parota porotta barotta ready frozen"],
+  ["iD Whole Wheat Parota", "1 parota", 70, 312.9, 11.52, 30.81, 15.95, 0, 0, 0, 300, 0, 0, 0, 0, 0, 0, 0, 0, "id fresh idfresh wheat parotta paratha atta parota porotta ready frozen"],
   ["Maggi noodles (dry pack)", "1 pack", 70, 440, 8.5, 62, 17, 2, 2, 8, 1600, 150, 20, 2, 20, 0.6, 0, 0, 0, "instant noodles"],
 
   // Breakfast

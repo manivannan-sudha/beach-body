@@ -1046,7 +1046,7 @@
   function closeSheet() {
     const sh = S.sheet;
     if (sh && sh.ctl) sh.ctl.abort();
-    if (sh && sh.rec) { const rec = sh.rec; sh.rec = null; try { rec.abort(); } catch (e) { /* already stopped */ } }
+    if (sh && sh.rec) { const rec = sh.rec; clearTimeout(sh.recMax); clearTimeout(sh.recKill); sh.rec = null; sh.listening = false; try { rec.abort(); } catch (e) { /* already stopped */ } }
     if (sh && sh.photos) sh.photos.forEach((p) => URL.revokeObjectURL(p.url));
     S.sheet = null;
     $("#sheet").hidden = true;
@@ -1146,29 +1146,52 @@
     if (box) box.innerHTML = voiceList(sh);
   }
   function voiceListen(sh) {
-    if (!SpeechRec || sh.rec) return;
+    if (!SpeechRec) return;
+    if (sh.rec) voiceKill(sh); // one still winding down from the last tap
     const rec = new SpeechRec();
     rec.lang = "en-IN"; rec.interimResults = true; rec.continuous = false; rec.maxAlternatives = 1;
     // Each tap adds to what was already said, so a meal can be logged in a few goes.
     const before = (sh.vtext || "").trim();
     rec.onresult = (e) => {
-      const said = Array.from(e.results).map((r) => r[0].transcript).join(" ").trim();
+      if (sh.rec !== rec) return;
+      // Some Android builds repeat earlier words in each new result; keep the longest version instead of doubling up.
+      const parts = Array.from(e.results).map((r) => r[0].transcript.trim()).filter(Boolean);
+      const said = parts.reduce((acc, p) => (!acc ? p : p.toLowerCase().startsWith(acc.toLowerCase()) ? p : acc + " " + p), "");
       sh.vtext = before && said ? before + ", " + said : before || said;
       const ta = $("#v-text");
       if (ta) ta.value = sh.vtext;
       voiceReparse(sh);
+      // A final result means a pause: end this go, so the mic never stays on by itself.
+      if (e.results.length && e.results[e.results.length - 1].isFinal) voiceStop(sh);
     };
     rec.onerror = (e) => {
       sh.verror = e.error === "not-allowed" || e.error === "service-not-allowed" ? "The microphone is blocked for this app. Allow it in Chrome's site settings, or use the mic on your keyboard."
         : e.error === "no-speech" ? "Didn't hear anything. Tap and try again." : e.error === "network" ? "Speech-to-text needs a connection right now. Type it instead, or use the mic on your keyboard."
         : e.error === "aborted" ? null : "Listening stopped. Tap and try again.";
     };
-    rec.onend = () => { if (sh.rec === rec) { sh.rec = null; sh.listening = false; if (S.sheet === sh) renderSheet(); } };
+    rec.onend = () => { if (sh.rec === rec) voiceDone(sh); };
     sh.rec = rec; sh.listening = true; sh.verror = null;
-    try { rec.start(); } catch (e) { sh.rec = null; sh.listening = false; sh.verror = "Couldn't start listening. Tap and try again."; }
+    sh.recMax = setTimeout(() => voiceStop(sh), 25000); // a long ramble still ends on its own
+    try { rec.start(); } catch (e) { voiceDone(sh); sh.verror = "Couldn't start listening. Tap and try again."; }
     renderSheet();
   }
-  function voiceStop(sh) { if (sh && sh.rec) { try { sh.rec.stop(); } catch (e) { /* already stopped */ } } }
+  function voiceDone(sh) {
+    clearTimeout(sh.recMax); clearTimeout(sh.recKill);
+    sh.rec = null; sh.listening = false;
+    if (S.sheet === sh) { grabFoodInputs(sh); renderSheet(); }
+  }
+  function voiceKill(sh) { const rec = sh.rec; voiceDone(sh); try { rec.abort(); } catch (e) { /* already ended */ } }
+  // Stop asks Chrome to finish and send the last words. The button changes back straight away, and if Chrome
+  // hasn't ended within a second and a half (it sometimes never does on Android), the mic is cut off.
+  function voiceStop(sh) {
+    if (!sh || !sh.rec || !sh.listening) return;
+    const rec = sh.rec;
+    sh.listening = false;
+    try { rec.stop(); } catch (e) { /* already stopped */ }
+    clearTimeout(sh.recKill);
+    sh.recKill = setTimeout(() => { if (sh.rec === rec) voiceKill(sh); }, 1500);
+    if (S.sheet === sh) { grabFoodInputs(sh); renderSheet(); }
+  }
   function sheetFood(sh) {
     const modes = [["search", "Search"], ["voice", "Voice"], ["photo", "Photo"], ["text", "Describe"], ["manual", "Manual"]];
     const aiOff = !aiOn();
@@ -1932,7 +1955,7 @@ Write plain text with no markdown, headings or bold. Exactly five lines, each st
       if (!el.dataset.mode) setTimeout(() => { const q = $("#f-q"); if (q && window.matchMedia("(hover: hover)").matches) q.focus(); }, 30);
       if (el.dataset.mode === "voice") voiceListen(S.sheet); // still inside the tap, which the browser needs for the mic
     },
-    "voice-mic"() { const sh = S.sheet; if (sh.rec) voiceStop(sh); else { grabFoodInputs(sh); voiceListen(sh); } },
+    "voice-mic"() { const sh = S.sheet; if (sh.listening) voiceStop(sh); else { grabFoodInputs(sh); voiceListen(sh); } },
     "v-del"(el) { const sh = S.sheet; sh.vitems.splice(+el.dataset.i, 1); $("#v-items").innerHTML = voiceList(sh); },
     "voice-add"() {
       const sh = S.sheet, byMeal = {};
