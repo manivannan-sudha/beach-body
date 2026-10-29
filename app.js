@@ -1043,6 +1043,7 @@
     renderSheet();
     const p = $("#sheet-panel"); p.setAttribute("tabindex", "-1"); p.focus({ preventScroll: true });
   }
+  let updateWhenIdle = () => {}; // set at start-up: reloads into a new version once nothing is being edited
   function closeSheet() {
     const sh = S.sheet;
     if (sh && sh.ctl) sh.ctl.abort();
@@ -1053,6 +1054,7 @@
     document.body.style.overflow = "";
     syncFab();
     scheduleRender();
+    setTimeout(() => updateWhenIdle(), 1500); // after what the sheet saved has been written
   }
   const head = (title) => `<div class="sheet-h"><h2 id="sheet-title">${esc(title)}</h2><button class="icon-btn" data-act="close" aria-label="Close">${I.close}</button></div>`;
   function renderSheet() {
@@ -1103,6 +1105,7 @@
     if (v("v-text") !== undefined) sh.vtext = v("v-text");
   }
   // ----- voice panel -----
+  const APP_VERSION = 16; // keep in step with CACHE in sw.js; shown in Settings
   const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
   function voicePanel(sh) {
     return `${SpeechRec ? `<button class="btn ${sh.listening ? "rec" : "primary"} wide" data-act="voice-mic" id="v-mic">${I.mic}${sh.listening ? "Listening… tap to stop" : sh.vtext ? "Tap and say more" : "Tap and speak"}</button>`
@@ -1164,6 +1167,7 @@
       // A final result means a pause: end this go, so the mic never stays on by itself.
       if (e.results.length && e.results[e.results.length - 1].isFinal) voiceStop(sh);
     };
+    rec.onspeechend = () => voiceStop(sh, true);
     rec.onerror = (e) => {
       sh.verror = e.error === "not-allowed" || e.error === "service-not-allowed" ? "The microphone is blocked for this app. Allow it in Chrome's site settings, or use the mic on your keyboard."
         : e.error === "no-speech" ? "Didn't hear anything. Tap and try again." : e.error === "network" ? "Speech-to-text needs a connection right now. Type it instead, or use the mic on your keyboard."
@@ -1171,7 +1175,7 @@
     };
     rec.onend = () => { if (sh.rec === rec) voiceDone(sh); };
     sh.rec = rec; sh.listening = true; sh.verror = null;
-    sh.recMax = setTimeout(() => voiceStop(sh), 25000); // a long ramble still ends on its own
+    sh.recMax = setTimeout(() => voiceStop(sh), 20000); // a long ramble still ends on its own
     try { rec.start(); } catch (e) { voiceDone(sh); sh.verror = "Couldn't start listening. Tap and try again."; }
     renderSheet();
   }
@@ -1181,15 +1185,17 @@
     if (S.sheet === sh) { grabFoodInputs(sh); renderSheet(); }
   }
   function voiceKill(sh) { const rec = sh.rec; voiceDone(sh); try { rec.abort(); } catch (e) { /* already ended */ } }
-  // Stop asks Chrome to finish and send the last words. The button changes back straight away, and if Chrome
-  // hasn't ended within a second and a half (it sometimes never does on Android), the mic is cut off.
-  function voiceStop(sh) {
-    if (!sh || !sh.rec || !sh.listening) return;
+  // A tap cuts the mic off at once with abort(): on Android, stop() can leave it listening. What was heard is
+  // already in the box (it fills in as you speak). When speech just ends (soft), Chrome gets under a second to
+  // send its final words before the mic is cut off anyway; the button changes back straight away either way.
+  function voiceStop(sh, soft) {
+    if (!sh || !sh.rec) return;
+    if (!soft) { voiceKill(sh); return; }
     const rec = sh.rec;
-    sh.listening = false;
     try { rec.stop(); } catch (e) { /* already stopped */ }
+    sh.listening = false;
     clearTimeout(sh.recKill);
-    sh.recKill = setTimeout(() => { if (sh.rec === rec) voiceKill(sh); }, 1500);
+    sh.recKill = setTimeout(() => { if (sh.rec === rec) voiceKill(sh); }, 800);
     if (S.sheet === sh) { grabFoodInputs(sh); renderSheet(); }
   }
   function sheetFood(sh) {
@@ -1750,7 +1756,8 @@
       <h3>Your data</h3>
       <p class="muted">Everything, photos included, is stored on this device${S.persisted ? " and protected from automatic clean-up" : ""}. Nothing is uploaded anywhere. Download a backup every week or two, and always before clearing Chrome's data or changing phones. ${S.meta.lastBackup ? "Last backup: " + esc(fmtDate(S.meta.lastBackup, { day: "numeric", month: "short", year: "numeric" })) + "." : "No backup yet."}</p>
       ${sh.importData ? `<p class="note warn">Restore ${esc(sh.importInfo)}? Entries with the same date are replaced.</p><div class="row"><button class="btn" data-act="import-cancel">Cancel</button><button class="btn primary" data-act="import-go"${sh.importBusy ? " disabled" : ""}>Restore</button></div>`
-        : `<div class="row"><button class="btn small" data-act="export">Download backup</button><label class="btn small" for="s-import">Restore a backup</label><input id="s-import" class="vh" type="file" accept="application/json,.json" data-file="import"></div>`}`;
+        : `<div class="row"><button class="btn small" data-act="export">Download backup</button><label class="btn small" for="s-import">Restore a backup</label><input id="s-import" class="vh" type="file" accept="application/json,.json" data-file="import"></div>`}
+      <small class="muted">App version ${APP_VERSION}</small>`;
   }
 
   // The QR library loads only when settings opens.
@@ -2386,7 +2393,21 @@ Write plain text with no markdown, headings or bold. Exactly five lines, each st
     } catch (e) { /* ignore */ }
     const h = (location.hash || "").slice(1);
     if (["today", "train", "body", "trends"].includes(h)) S.ui.tab = h;
-    if ("serviceWorker" in navigator && location.protocol === "https:") navigator.serviceWorker.register("sw.js").catch((e) => console.warn("offline support unavailable", e));
+    if ("serviceWorker" in navigator && location.protocol === "https:") {
+      navigator.serviceWorker.register("sw.js").catch((e) => console.warn("offline support unavailable", e));
+      // A new version took over: reload once so the screen runs it, but never in the middle of adding something.
+      const hadController = !!navigator.serviceWorker.controller;
+      let pending = false;
+      const reloadIfIdle = () => {
+        const a = document.activeElement;
+        if (!pending || S.sheet || document.hidden || (a && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName))) return;
+        location.reload();
+      };
+      navigator.serviceWorker.addEventListener("controllerchange", () => { if (hadController) { pending = true; reloadIfIdle(); } });
+      document.addEventListener("visibilitychange", reloadIfIdle);
+      document.addEventListener("focusout", () => setTimeout(reloadIfIdle, 300));
+      updateWhenIdle = reloadIfIdle;
+    }
     const a = await loadAccess();
     const saved = lsGet(ACCESS_KEY);
     S.accessOn = !!a.hash || (!!a.offline && !!saved);
