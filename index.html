@@ -300,6 +300,18 @@ details.wo summary::-webkit-details-marker { display: none; }
 .ex { display: grid; grid-template-columns: 1fr auto; gap: 4px 10px; font-size: 14px; }
 .ex .exn { font-weight: 600; }
 .ex .sets { grid-column: 1 / -1; color: var(--ink-2); font-size: 13.5px; font-variant-numeric: tabular-nums; }
+/* Voice logging */
+.btn.rec { background: var(--bad); border-color: var(--bad); color: #fff; animation: recpulse 1.4s ease-in-out infinite; }
+@keyframes recpulse { 50% { opacity: .78; } }
+@media (prefers-reduced-motion: reduce) { .btn.rec { animation: none; } }
+.vlist { display: flex; flex-direction: column; gap: 10px; margin-bottom: 12px; }
+.vrow { border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 8px 10px 10px; display: flex; flex-direction: column; gap: 8px; }
+.vrow.miss { border-color: var(--bad); }
+.vrow-h { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); min-width: 0; }
+.vrow-h span { overflow-wrap: anywhere; }
+.vrow-h .icon-btn { width: 30px; height: 30px; margin: -4px -4px -4px 0; }
+.vrow .grid3 { grid-template-columns: 64px minmax(0, 1fr) 100px; gap: 8px; }
+.vrow .vn { font-size: 13.5px; font-weight: 600; color: var(--ink-2); font-variant-numeric: tabular-nums; }
 .ex button.exn { text-align: left; font-size: 14px; }
 .ex .exn small { font-weight: 500; color: var(--muted); }
 .ex .chips { justify-content: flex-end; }
@@ -323,6 +335,8 @@ details.wo summary::-webkit-details-marker { display: none; }
 .sheet { position: fixed; inset: 0; z-index: 50; display: flex; align-items: flex-end; justify-content: center; }
 .sheet-bg { position: absolute; inset: 0; background: rgba(4, 14, 18, .48); }
 .sheet-panel { position: relative; background: var(--surface); width: 100%; max-width: 600px; max-height: 92%; overflow-y: auto; border-radius: 18px 18px 0 0; padding: 16px max(16px, env(safe-area-inset-right, 0px)) calc(20px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px)); display: flex; flex-direction: column; gap: 14px; box-shadow: 0 -8px 40px rgba(0, 0, 0, .2); overscroll-behavior: contain; }
+/* The panel scrolls when it's full, so its parts keep their size (a scrollable strip would otherwise collapse). */
+.sheet-panel > * { flex-shrink: 0; }
 @media (min-width: 680px) { .sheet { align-items: center; } .sheet-panel { border-radius: 18px; max-height: 88%; } }
 .sheet-h { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
 .sheet-h h2 { font-size: 23px; }

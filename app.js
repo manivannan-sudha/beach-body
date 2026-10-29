@@ -85,6 +85,7 @@
     check: svg('<path d="M5 12.5l4.5 4.5L19 7.5"/>'),
     trash: svg('<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>'),
     spark: svg('<path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5L18 18M6 18l2.5-2.5M15.5 8.5L18 6"/>'),
+    mic: svg('<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21M8.5 21h7"/>'),
     trophy: svg('<path d="M8 4h8v5a4 4 0 0 1-8 0z"/><path d="M8 6H5v1a3 3 0 0 0 3 3M16 6h3v1a3 3 0 0 1-3 3M12 13v4M8.5 20h7M10 17h4"/>'),
   };
 
@@ -545,7 +546,7 @@
   function foodCard(d) {
     const items = foodsOf(d);
     const yItems = foodsOf(addDays(d, -1));
-    return `<section class="card"><div class="card-h"><h2>Food</h2><div class="row"><button class="btn small" data-act="guide">Food guide</button><button class="btn small primary" data-act="addfood">${I.plus}Add food</button></div></div>
+    return `<section class="card"><div class="card-h"><h2>Food</h2><div class="row"><button class="btn small" data-act="guide">Food guide</button><button class="btn small" data-act="addfood" data-mode="voice" aria-label="Log food by voice">${I.mic}Voice</button><button class="btn small primary" data-act="addfood">${I.plus}Add food</button></div></div>
     ${MEALS.map(([k, label]) => {
       const list = items.filter((e) => (e.meal || "other") === k);
       if (k === "other" && !list.length) return "";
@@ -1045,6 +1046,7 @@
   function closeSheet() {
     const sh = S.sheet;
     if (sh && sh.ctl) sh.ctl.abort();
+    if (sh && sh.rec) { const rec = sh.rec; sh.rec = null; try { rec.abort(); } catch (e) { /* already stopped */ } }
     if (sh && sh.photos) sh.photos.forEach((p) => URL.revokeObjectURL(p.url));
     S.sheet = null;
     $("#sheet").hidden = true;
@@ -1098,13 +1100,82 @@
     if (v("f-note") !== undefined) sh.note = v("f-note");
     if (v("f-grams") !== undefined) sh.grams = v("f-grams");
     if (v("f-desc") !== undefined) sh.desc = v("f-desc");
+    if (v("v-text") !== undefined) sh.vtext = v("v-text");
   }
+  // ----- voice panel -----
+  const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+  function voicePanel(sh) {
+    return `${SpeechRec ? `<button class="btn ${sh.listening ? "rec" : "primary"} wide" data-act="voice-mic" id="v-mic">${I.mic}${sh.listening ? "Listening… tap to stop" : sh.vtext ? "Tap and say more" : "Tap and speak"}</button>`
+        : `<p class="note">This browser can't listen. Tap the box below and use the mic on your keyboard instead.</p>`}
+      <label class="f" for="v-text">What you said. Fix any word here and the list updates.
+        <textarea id="v-text" rows="3" data-input="voice-text" placeholder="dinner chicken breast 100 grams, 1 chapati, snacks 1 black coffee">${esc(sh.vtext || "")}</textarea></label>
+      ${sh.verror ? `<p class="err">${esc(sh.verror)}</p>` : ""}
+      <div id="v-items">${voiceList(sh)}</div>
+      <small>Say a meal (breakfast, lunch, snacks, dinner), then each food with its amount: "1 chapati", "chicken breast 100 grams", "2 idlis". Anything before a meal word goes to ${esc(mealLabel(sh.meal))}. Your phone's speech-to-text turns speech into words; the foods are read on this phone, with no AI.</small>`;
+  }
+  function voiceRowN(it) {
+    const f = it.cands[it.fi], g = voiceGrams(it);
+    if (!f || !(g > 0)) return "–";
+    const n = scaleN(f.per100, g / 100);
+    return `${fmt(n.kcal)} kcal · ${fmt(n.p, 1)} g protein · ${fmt(g)} g`;
+  }
+  function voiceList(sh) {
+    const items = sh.vitems || [];
+    if (!items.length) return "";
+    const ok = items.filter((it) => it.cands[it.fi] && voiceGrams(it) > 0);
+    const tot = ok.reduce((a, it) => addN(a, scaleN(it.cands[it.fi].per100, voiceGrams(it) / 100)), zeroN());
+    return `<div class="vlist">${items.map((it, i) => {
+      const f = it.cands[it.fi];
+      const head = `<div class="vrow-h"><span>Heard “${esc(it.said)}”</span><button class="icon-btn" data-act="v-del" data-i="${i}" aria-label="Remove ${esc(it.said)}">${I.close}</button></div>`;
+      if (!f) return `<div class="vrow miss">${head}<p class="err">Not in the food list. Fix the words above, or add it from Search.</p></div>`;
+      const sLabel = /^[\d.,]+ g$/.test(f.serving.label) ? `${fmt(f.serving.g)} g serving` : f.serving.label.replace(/^1 /, "");
+      return `<div class="vrow">${head}
+        <select data-input="v-food" data-i="${i}" aria-label="Food">${it.cands.map((c, k) => `<option value="${k}"${k === it.fi ? " selected" : ""}>${esc(c.name)}</option>`).join("")}</select>
+        <div class="grid3">
+          <input type="number" inputmode="decimal" min="0" step="${it.unit === "g" ? 5 : 0.5}" value="${r1(it.qty)}" data-input="v-qty" data-i="${i}" aria-label="Amount">
+          <select data-input="v-unit" data-i="${i}" aria-label="Unit"><option value="s"${it.unit === "s" ? " selected" : ""}>× ${esc(sLabel)}</option><option value="g"${it.unit === "g" ? " selected" : ""}>grams</option></select>
+          <select data-input="v-meal" data-i="${i}" aria-label="Meal">${MEALS.map(([k, l]) => `<option value="${k}"${k === it.meal ? " selected" : ""}>${l}</option>`).join("")}</select>
+        </div>
+        <span class="vn" id="v-n${i}">${voiceRowN(it)}</span></div>`;
+    }).join("")}</div>
+    <button class="btn primary wide" data-act="voice-add"${ok.length ? "" : " disabled"}>Add ${ok.length} item${ok.length === 1 ? "" : "s"} · ${fmt(tot.kcal)} kcal, ${fmt(tot.p)} g protein</button>`;
+  }
+  function voiceReparse(sh) {
+    sh.vitems = voiceItems(sh.vtext || "", sh.meal);
+    const box = $("#v-items");
+    if (box) box.innerHTML = voiceList(sh);
+  }
+  function voiceListen(sh) {
+    if (!SpeechRec || sh.rec) return;
+    const rec = new SpeechRec();
+    rec.lang = "en-IN"; rec.interimResults = true; rec.continuous = false; rec.maxAlternatives = 1;
+    // Each tap adds to what was already said, so a meal can be logged in a few goes.
+    const before = (sh.vtext || "").trim();
+    rec.onresult = (e) => {
+      const said = Array.from(e.results).map((r) => r[0].transcript).join(" ").trim();
+      sh.vtext = before && said ? before + ", " + said : before || said;
+      const ta = $("#v-text");
+      if (ta) ta.value = sh.vtext;
+      voiceReparse(sh);
+    };
+    rec.onerror = (e) => {
+      sh.verror = e.error === "not-allowed" || e.error === "service-not-allowed" ? "The microphone is blocked for this app. Allow it in Chrome's site settings, or use the mic on your keyboard."
+        : e.error === "no-speech" ? "Didn't hear anything. Tap and try again." : e.error === "network" ? "Speech-to-text needs a connection right now. Type it instead, or use the mic on your keyboard."
+        : e.error === "aborted" ? null : "Listening stopped. Tap and try again.";
+    };
+    rec.onend = () => { if (sh.rec === rec) { sh.rec = null; sh.listening = false; if (S.sheet === sh) renderSheet(); } };
+    sh.rec = rec; sh.listening = true; sh.verror = null;
+    try { rec.start(); } catch (e) { sh.rec = null; sh.listening = false; sh.verror = "Couldn't start listening. Tap and try again."; }
+    renderSheet();
+  }
+  function voiceStop(sh) { if (sh && sh.rec) { try { sh.rec.stop(); } catch (e) { /* already stopped */ } } }
   function sheetFood(sh) {
-    const modes = [["search", "Search"], ["photo", "Photo"], ["text", "Describe"], ["manual", "Manual"]];
+    const modes = [["search", "Search"], ["voice", "Voice"], ["photo", "Photo"], ["text", "Describe"], ["manual", "Manual"]];
     const aiOff = !aiOn();
     let body = "";
     if (sh.results) body = resultsEditor(sh);
     else if (sh.pick) body = pickPanel(sh);
+    else if (sh.mode === "voice") body = voicePanel(sh);
     else if (sh.mode === "photo" || sh.mode === "text") {
       if (aiOff) body = `<div class="note spread"><span>Add your Anthropic API key in Settings to estimate dishes that aren't in the food list. Search works without it.</span><button class="btn small primary" data-act="settings">Add key</button></div>`;
       else if (sh.mode === "photo") {
@@ -1190,6 +1261,123 @@
     const alias = window.FOODS.filter((f) => (" " + normName(f.aliases) + " ").includes(" " + q + " "));
     return alias.length === 1 ? alias[0] : null;
   }
+  // ----- Voice logging: the phone's speech-to-text gives the words, and this reads them against the
+  // food list with no AI. "dinner chicken breast 100 grams, 1 chapati, snacks 1 black coffee" becomes
+  // three items: meal words switch the meal, a number starts an item, and grams after a food belong to it.
+  const V_MEALS = { breakfast: "breakfast", lunch: "lunch", dinner: "dinner", supper: "dinner", snack: "snack", snacks: "snack" };
+  const V_NUM = { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, eleven: 11, twelve: 12, thirteen: 13, fourteen: 14, fifteen: 15, sixteen: 16, seventeen: 17, eighteen: 18, nineteen: 19, twenty: 20, thirty: 30, forty: 40, fifty: 50, sixty: 60, seventy: 70, eighty: 80, ninety: 90, hundred: 100, half: 0.5, quarter: 0.25 };
+  const V_WEIGHT = { g: 1, gm: 1, gms: 1, gram: 1, grams: 1, gr: 1, grm: 1, grms: 1, ml: 1, mls: 1, millilitre: 1, millilitres: 1, milliliter: 1, milliliters: 1, kg: 1000, kgs: 1000, kilo: 1000, kilos: 1000, kilogram: 1000, kilograms: 1000, l: 1000, litre: 1000, litres: 1000, liter: 1000, liters: 1000, ltr: 1000 };
+  const V_COUNT = new Set("piece pieces pc pcs nos serving servings plate plates bowl bowls katori katoris cup cups glass glasses scoop scoops slice slices tumbler tumblers bottle bottles tbsp tablespoon tablespoons tsp teaspoon teaspoons spoon spoons handful handfuls packet packets pack packs ladle ladles".split(" "));
+  const V_JOIN = new Set(["and", "plus", "then", "also"]);
+  const V_STOP = new Set("i had have ate eaten eat took take drank drink for of the some my with about around approx approximately roughly today just little bit small medium large big in at on me is was it like um uh ok okay so add log please evening morning night pre post".split(" "));
+  // How speech-to-text tends to spell foods that the list spells differently.
+  const V_SPELL = { chapathi: "chapati", chappati: "chapati", chapatti: "chapati", chappathi: "chapati", idly: "idli", idlie: "idli", sambhar: "sambar", puri: "poori", panner: "paneer", panir: "paneer", yoghurt: "yogurt", biriyani: "biryani", briyani: "biryani", parota: "parotta", porotta: "parotta", barotta: "parotta", upuma: "upma", vadai: "vada", wada: "vada", dosai: "dosa", korma: "kurma", dhal: "dal", daal: "dal" };
+  function voiceTokens(text) {
+    return String(text || "").toLowerCase().replace(/&/g, " and ").replace(/\+/g, " plus ")
+      .replace(/(\d)\.(\d)/g, "$1§$2").replace(/[,;.!?]+/g, " , ").replace(/§/g, ".")
+      .replace(/(\d)([a-z])/g, "$1 $2").replace(/([a-z])(\d)/g, "$1 $2")
+      .replace(/[^a-z0-9., ]+/g, " ").split(/\s+/).filter(Boolean);
+  }
+  // A number at toks[i]: digits or words ("two hundred", "one and a half", "a" before a food), with how many tokens it used.
+  function voiceNumber(toks, i) {
+    const t = toks[i];
+    let v, j = i + 1;
+    if (/^\d+(\.\d+)?$/.test(t)) v = parseFloat(t);
+    else if (t in V_NUM) {
+      v = V_NUM[t];
+      while (j < toks.length) {
+        const w = toks[j];
+        if (w === "hundred" && v < 100) { v *= 100; j++; } else if (w in V_NUM && V_NUM[w] >= 1 && V_NUM[w] < 10 && v >= 20 && v % 10 === 0) { v += V_NUM[w]; j++; } else break;
+      }
+    } else if ((t === "a" || t === "an") && toks[i + 1] && !(toks[i + 1] in V_NUM) && !/^\d/.test(toks[i + 1])) return { v: 1, len: 1 };
+    else return null;
+    if (toks[j] === "and" && toks[j + 1] === "half") { v += 0.5; j += 2; } else if (toks[j] === "and" && toks[j + 1] === "a" && toks[j + 2] === "half") { v += 0.5; j += 3; }
+    return { v, len: j - i };
+  }
+  function parseVoice(text, meal0) {
+    const toks = voiceTokens(text), items = [];
+    let meal = meal0, cur = null;
+    const close = () => {
+      if (cur && cur.words.length) items.push(cur);
+      else if (cur && cur.qty != null) {
+        // "chicken breast, 100 grams": an amount on its own belongs to the food just before it.
+        const last = items[items.length - 1];
+        if (last && last.qty == null && last.meal === cur.meal) Object.assign(last, { qty: cur.qty, mult: cur.mult, said: last.said.concat(cur.said) });
+      }
+      cur = null;
+    };
+    for (let i = 0; i < toks.length; i++) {
+      const t = toks[i];
+      if (V_MEALS[t]) { close(); meal = V_MEALS[t]; continue; }
+      if (t === ",") { close(); continue; }
+      const n = voiceNumber(toks, i);
+      if (n) {
+        const said = toks.slice(i, i + n.len);
+        i += n.len - 1;
+        const u = toks[i + 1], mult = V_WEIGHT[u];
+        if (mult || V_COUNT.has(u)) { said.push(u); i++; }
+        if (mult && cur && cur.words.length && cur.qty == null) { Object.assign(cur, { qty: n.v, mult }); cur.said = cur.said.concat(said); close(); continue; }
+        close();
+        cur = { meal, qty: n.v, mult: mult || 0, words: [], said, soft: [] };
+        continue;
+      }
+      if (V_JOIN.has(t)) {
+        // "and" before an amount starts a new item; otherwise it may be part of a dish ("coffee with milk and sugar").
+        if (i + 1 < toks.length && (voiceNumber(toks, i + 1) || V_MEALS[toks[i + 1]])) close();
+        else if (cur && cur.words.length) cur.soft.push(cur.words.length);
+        continue;
+      }
+      if (V_STOP.has(t) || (t.length === 1 && !/\d/.test(t))) continue;
+      if (!cur) cur = { meal, qty: null, mult: 0, words: [], said: [], soft: [] };
+      cur.words.push(t); cur.said.push(t);
+    }
+    close();
+    return items;
+  }
+  // Foods matching spoken words, best first, preferring what was logged lately. Strict: every word has to match.
+  function voiceCandidates(words, strict) {
+    const toks = words.map((w) => (w.length > 3 && /[^s]s$/.test(w) ? w.slice(0, -1) : w)).map((w) => V_SPELL[w] || w);
+    if (strict) return searchFoods(toks.join(" ")) || [];
+    const all = myFoodList().concat(window.FOODS);
+    const known = toks.filter((t) => all.some((f) => (normName(f.name) + " " + normName(f.aliases)).includes(t)));
+    let res = searchFoods(known.join(" ")) || [];
+    // Still nothing: drop words from the front, then from the back ("tasty dosa", "dosa please").
+    for (let k = 1; !res.length && k < known.length; k++) {
+      res = searchFoods(known.slice(k).join(" ")) || [];
+      if (!res.length) res = searchFoods(known.slice(0, -k).join(" ")) || [];
+    }
+    if (!res.length) {
+      // "blackcoffee": compare with the spaces taken out.
+      const q = toks.join("");
+      res = q.length > 3 ? all.filter((f) => (normName(f.name) + normName(f.aliases)).replace(/ /g, "").includes(q)) : [];
+    }
+    const recent = new Set(recentFoods().map((f) => f.name.toLowerCase()));
+    const top = res.slice(0, 6), r = top.findIndex((f) => recent.has(f.name.toLowerCase()));
+    if (r > 0) top.unshift(top.splice(r, 1)[0]);
+    return top;
+  }
+  function voiceItems(text, meal0) {
+    const out = [];
+    parseVoice(text, meal0).forEach((it) => {
+      let parts = [it];
+      // No food for the whole phrase: try it as separate foods where an "and" was heard.
+      if (it.soft.length && !voiceCandidates(it.words, true).length) {
+        const cuts = [0].concat(it.soft, [it.words.length]);
+        // The amount belongs to the first food, so its "heard" text keeps the amount but not the later foods.
+        const later = it.words.slice(cuts[1]), said0 = it.said.slice();
+        for (let w = later.length - 1, j = said0.length - 1; w >= 0 && j >= 0; j--) if (said0[j] === later[w]) { said0.splice(j, 1); w--; }
+        parts = cuts.slice(0, -1).map((c, k) => ({ meal: it.meal, qty: k ? null : it.qty, mult: k ? 0 : it.mult, words: it.words.slice(c, cuts[k + 1]), said: k ? it.words.slice(c, cuts[k + 1]) : said0 }));
+      }
+      parts.forEach((p) => {
+        const cands = voiceCandidates(p.words);
+        const unit = p.mult ? "g" : "s", qty = p.mult ? p.qty * p.mult : p.qty == null ? 1 : p.qty;
+        out.push({ meal: p.meal, said: p.said.join(" "), cands, fi: 0, unit, qty });
+      });
+    });
+    return out;
+  }
+  const voiceGrams = (it) => { const f = it.cands[it.fi]; return f ? (it.unit === "g" ? it.qty : it.qty * f.serving.g) : 0; };
+
   function recentFoods() {
     const out = [], seen = new Set();
     const dates = Object.keys(S.col.days).sort().reverse().slice(0, 30);
@@ -1742,6 +1930,21 @@ Write plain text with no markdown, headings or bold. Exactly five lines, each st
     addfood(el) {
       openSheet({ type: "food", meal: el.dataset.meal || guessMeal(), mode: el.dataset.mode || "search", date: S.ui.date });
       if (!el.dataset.mode) setTimeout(() => { const q = $("#f-q"); if (q && window.matchMedia("(hover: hover)").matches) q.focus(); }, 30);
+      if (el.dataset.mode === "voice") voiceListen(S.sheet); // still inside the tap, which the browser needs for the mic
+    },
+    "voice-mic"() { const sh = S.sheet; if (sh.rec) voiceStop(sh); else { grabFoodInputs(sh); voiceListen(sh); } },
+    "v-del"(el) { const sh = S.sheet; sh.vitems.splice(+el.dataset.i, 1); $("#v-items").innerHTML = voiceList(sh); },
+    "voice-add"() {
+      const sh = S.sheet, byMeal = {};
+      (sh.vitems || []).forEach((it) => {
+        const f = it.cands[it.fi], g = voiceGrams(it);
+        if (f && g > 0) (byMeal[it.meal] = byMeal[it.meal] || []).push({ name: f.name, g, n: scaleN(f.per100, g / 100), src: f.mine ? "mine" : "db" });
+      });
+      const meals = Object.keys(byMeal), n = meals.reduce((a, k) => a + byMeal[k].length, 0);
+      if (!n) { toast("Nothing to add yet"); return; }
+      meals.forEach((k) => addEntries(sh.date, k, byMeal[k]));
+      closeSheet();
+      if (meals.length > 1) toast(`Added ${n} items to ${meals.map(mealLabel).join(" and ")}`);
     },
     "savemeal-open"(el) { openSheet({ type: "savemeal", meal: el.dataset.meal, date: S.ui.date }); },
     savemeal() {
@@ -1783,8 +1986,13 @@ Write plain text with no markdown, headings or bold. Exactly five lines, each st
       if (S.sheet === sh) renderSheet();
     },
     lockdevice(el) { if (!armed(el)) return; lsSet(ACCESS_KEY, null); location.reload(); },
-    "food-meal"(el) { S.sheet.meal = el.dataset.meal; renderSheet(); },
-    "food-mode"(el) { S.sheet.mode = el.dataset.mode; S.sheet.error = null; renderSheet(); if (el.dataset.mode === "search") setTimeout(() => { const q = $("#f-q"); if (q) q.focus(); }, 30); },
+    "food-meal"(el) {
+      const sh = S.sheet;
+      sh.meal = el.dataset.meal;
+      if (sh.mode === "voice" && sh.vtext) { grabFoodInputs(sh); sh.vitems = voiceItems(sh.vtext, sh.meal); }
+      renderSheet();
+    },
+    "food-mode"(el) { voiceStop(S.sheet); S.sheet.mode = el.dataset.mode; S.sheet.error = null; renderSheet(); if (el.dataset.mode === "search") setTimeout(() => { const q = $("#f-q"); if (q) q.focus(); }, 30); },
     "food-estimate"() { estimateFood(); },
     "food-unphoto"(el) {
       const sh = S.sheet, p = sh.photos && sh.photos.splice(+el.dataset.i, 1)[0];
@@ -1957,6 +2165,24 @@ Write plain text with no markdown, headings or bold. Exactly five lines, each st
       if (note) note.textContent = bfNote(est);
     },
     "food-search"(el) { S.sheet.query = el.value; const box = $("#f-results"); if (box) box.innerHTML = foodOptions(S.sheet); },
+    "voice-text"(el) { S.sheet.vtext = el.value; voiceReparse(S.sheet); },
+    "v-food"(el) { const it = S.sheet.vitems[+el.dataset.i]; it.fi = +el.value; $("#v-items").innerHTML = voiceList(S.sheet); },
+    "v-qty"(el) {
+      const sh = S.sheet, i = +el.dataset.i;
+      sh.vitems[i].qty = num(el.value) || 0;
+      // Only the totals change, so the box being typed in keeps focus.
+      const n = $("#v-n" + i), add = $('[data-act="voice-add"]'), tmp = document.createElement("div");
+      if (n) n.textContent = voiceRowN(sh.vitems[i]);
+      tmp.innerHTML = voiceList(sh);
+      const fresh = tmp.querySelector('[data-act="voice-add"]');
+      if (add && fresh) { add.innerHTML = fresh.innerHTML; add.disabled = fresh.disabled; }
+    },
+    "v-unit"(el) {
+      const it = S.sheet.vitems[+el.dataset.i], f = it.cands[it.fi];
+      if (el.value !== it.unit && f) { it.qty = el.value === "g" ? r0(it.qty * f.serving.g) : r1(it.qty / f.serving.g); it.unit = el.value; }
+      $("#v-items").innerHTML = voiceList(S.sheet);
+    },
+    "v-meal"(el) { S.sheet.vitems[+el.dataset.i].meal = el.value; },
     pick(el) {
       const sh = S.sheet, unitEl = $("#p-unit"), qEl = $("#p-qty");
       if (el === unitEl && unitEl.value !== sh.pick.unit) {
